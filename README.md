@@ -1,4 +1,4 @@
-# 🧠 Computational Intuition
+# 🧠 Mímisbrunnr: The Intuition Lab
 
 **Building a "gut feeling" for abstract math and physics concepts through code.**
 
