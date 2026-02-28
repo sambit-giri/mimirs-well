@@ -32,13 +32,13 @@
             <nav class="bg-white rounded-xl shadow-sm border border-slate-200 p-2 overflow-hidden">
                 <ul class="text-sm font-semibold text-slate-600 flex flex-col">
                     <li>
-                        <a href="#notebooks" class="block px-4 py-2.5 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors flex items-center gap-2">
-                            <span>📂</span> Python Notebooks
+                        <a href="#visualisations" class="block px-4 py-2.5 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors flex items-center gap-2">
+                            <span>🌐</span> Interactive Visualisations
                         </a>
                     </li>
                     <li>
-                        <a href="#visualisations" class="block px-4 py-2.5 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors flex items-center gap-2">
-                            <span>🌐</span> Visualisations
+                        <a href="#notebooks" class="block px-4 py-2.5 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors flex items-center gap-2">
+                            <span>📂</span> Python Notebooks
                         </a>
                     </li>
                 </ul>
@@ -69,9 +69,56 @@
                 </p>
             </section>
 
+            <!-- Visualisations Section -->
+            <section id="visualisations" class="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-slate-200 scroll-mt-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">🌐 1. Interactive Visualisations</h2>
+                <p class="text-slate-600 mb-6">Browser-based apps that let you explore algorithms and simulations without running any code locally.</p>
+                
+                <ul class="space-y-4">
+                    <li class="p-4 rounded-lg bg-slate-50 border border-slate-100 hover:border-emerald-300 transition-colors border-l-4 border-l-emerald-500 shadow-sm">
+                        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+                            <a href="sorting.html" class="text-lg font-bold text-emerald-600 hover:text-emerald-800 hover:underline flex items-center gap-2">
+                                <span>📊 01. The Great Sort Race</span>
+                            </a>
+                            <div class="flex gap-2 text-xs font-semibold">
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Algorithms</span>
+                                <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded-full">Showdown</span>
+                            </div>
+                        </div>
+                        <p class="text-sm text-slate-500 mt-2">Compare the efficiency of O(N²) vs O(N log N) sorting algorithms side-by-side.</p>
+                    </li>
+                    
+                    <li class="p-4 rounded-lg bg-slate-50 border border-slate-100 hover:border-slate-300 transition-colors border-l-4 border-l-slate-300">
+                        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+                            <a href="clustering.html" class="text-lg font-bold text-slate-700 hover:text-blue-600 hover:underline flex items-center gap-2">
+                                <span>🌌 02. Cluster Finding</span> <span class="text-sm font-normal text-amber-600 ml-1">(Coming Soon)</span>
+                            </a>
+                            <div class="flex gap-2 text-xs font-semibold">
+                                <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">Machine Learning</span>
+                                <span class="bg-teal-100 text-teal-800 px-2 py-1 rounded-full">Data Science</span>
+                            </div>
+                        </div>
+                        <p class="text-sm text-slate-500 mt-2">Discover hidden structures and group data using K-Means, FoF, Meanshift, and DBSCAN.</p>
+                    </li>
+
+                    <li class="p-4 rounded-lg bg-slate-50 border border-slate-100 hover:border-slate-300 transition-colors border-l-4 border-l-slate-300">
+                        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+                            <a href="mcmc.html" class="text-lg font-bold text-slate-700 hover:text-blue-600 hover:underline flex items-center gap-2">
+                                <span>🎲 03. MCMC Sampling</span> <span class="text-sm font-normal text-amber-600 ml-1">(Coming Soon)</span>
+                            </a>
+                            <div class="flex gap-2 text-xs font-semibold">
+                                <span class="bg-rose-100 text-rose-800 px-2 py-1 rounded-full">Statistics</span>
+                                <span class="bg-fuchsia-100 text-fuchsia-800 px-2 py-1 rounded-full">Sampling</span>
+                            </div>
+                        </div>
+                        <p class="text-sm text-slate-500 mt-2">Visualize Metropolis-Hastings and how walkers explore complex probability distributions.</p>
+                    </li>
+                </ul>
+            </section>
+
             <!-- Notebooks Section -->
             <section id="notebooks" class="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-slate-200 scroll-mt-8">
-                <h2 class="text-2xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">📂 1. Python Notebooks</h2>
+                <h2 class="text-2xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">📂 2. Python Notebooks</h2>
                 <p class="text-slate-600 mb-6">Self-contained mathematical and physical experiments. View the code directly on GitHub:</p>
                 
                 <ul class="space-y-4">
@@ -95,40 +142,6 @@
                                 <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded-full">Stochastic Processes</span>
                             </div>
                         </div>
-                    </li>
-                </ul>
-            </section>
-
-            <!-- Visualisations Section -->
-            <section id="visualisations" class="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-slate-200 scroll-mt-8">
-                <h2 class="text-2xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">🌐 2. Interactive Visualisations</h2>
-                <p class="text-slate-600 mb-6">Browser-based apps that let you explore algorithms and simulations without running any code locally.</p>
-                
-                <ul class="space-y-4">
-                    <li class="p-4 rounded-lg bg-slate-50 border border-slate-100 hover:border-emerald-300 transition-colors border-l-4 border-l-emerald-500 shadow-sm">
-                        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                            <a href="sorting.html" class="text-lg font-bold text-emerald-600 hover:text-emerald-800 hover:underline flex items-center gap-2">
-                                <span>📊 A. The Great Sort Race</span>
-                            </a>
-                            <div class="flex gap-2 text-xs font-semibold">
-                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Algorithms</span>
-                                <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded-full">Showdown</span>
-                            </div>
-                        </div>
-                        <p class="text-sm text-slate-500 mt-2">Compare the efficiency of O(N²) vs O(N log N) sorting algorithms side-by-side.</p>
-                    </li>
-                    
-                    <li class="p-4 rounded-lg bg-slate-50 border border-slate-100 hover:border-slate-300 transition-colors border-l-4 border-l-slate-300">
-                        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                            <a href="mcmc.html" class="text-lg font-bold text-slate-700 hover:text-blue-600 hover:underline flex items-center gap-2">
-                                <span>🎲 B. MCMC Sampling</span> <span class="text-sm font-normal text-amber-600 ml-1">(Coming Soon)</span>
-                            </a>
-                            <div class="flex gap-2 text-xs font-semibold">
-                                <span class="bg-rose-100 text-rose-800 px-2 py-1 rounded-full">Statistics</span>
-                                <span class="bg-fuchsia-100 text-fuchsia-800 px-2 py-1 rounded-full">Sampling</span>
-                            </div>
-                        </div>
-                        <p class="text-sm text-slate-500 mt-2">Visualize Metropolis-Hastings and how walkers explore complex probability distributions.</p>
                     </li>
                 </ul>
             </section>
