@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorting Race | Mímisbrunnr</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        .canvas-container {
+            width: 100%;
+            height: 35vh;
+            min-height: 250px;
+            max-height: 350px;
+            position: relative;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 0.5rem;
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
+        }
+        
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1em;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 flex flex-col items-center">
+
+    <header class="text-center mb-6 max-w-2xl">
+        <h1 class="text-3xl md:text-4xl font-bold mb-2 text-slate-800">🧠 Mímisbrunnr: The Great Sort Race</h1>
+        <p class="text-slate-600 mb-3">Compare two algorithms side-by-side on the exact same array.</p>
+        <div class="inline-flex gap-2 text-xs font-semibold">
+            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Computer Science</span>
+            <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded-full">Performance Showdown</span>
+        </div>
+    </header>
+
+    <main class="w-full max-w-6xl flex-grow">
+        
+        <!-- Global Control Panel -->
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex gap-4 w-full md:w-auto">
+                <button id="btn-reset" class="flex-1 md:flex-none bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium py-2 px-6 rounded-lg transition-colors shadow-sm border border-slate-300">
+                    🔄 New Array
+                </button>
+                <button id="btn-start" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-8 rounded-lg transition-colors shadow-md">
+                    ▶️ Start Race
+                </button>
+            </div>
+            
+            <div class="flex flex-col md:flex-row gap-6 w-full md:w-auto">
+                <div class="flex flex-col gap-1 w-full md:w-48">
+                    <label for="size-slider" class="text-sm font-medium text-slate-600 flex justify-between">
+                        <span>Array Size</span><span id="size-label">10</span>
+                    </label>
+                    <input type="range" id="size-slider" min="5" max="150" value="10" class="w-full accent-slate-800">
+                </div>
+                <div class="flex flex-col gap-1 w-full md:w-48">
+                    <label for="speed-slider" class="text-sm font-medium text-slate-600 flex justify-between">
+                        <span>Speed</span><span id="speed-label">Slow</span>
+                    </label>
+                    <input type="range" id="speed-slider" min="1" max="100" value="20" class="w-full accent-blue-600">
+                </div>
+            </div>
+        </div>
+
+        <!-- The Arena (Side by Side) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            
+            <!-- ALGORITHM A -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-3">
+                <div class="flex flex-col gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <div class="flex justify-between items-center">
+                        <select id="select-a" class="bg-white border border-slate-300 text-slate-800 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 pr-8 font-bold shadow-sm outline-none cursor-pointer flex-1 mr-4">
+                            <optgroup label="Simple / Slow O(N²)">
+                                <option value="bubble">🫧 Bubble Sort</option>
+                                <option value="cocktail">🍸 Cocktail Shaker Sort</option>
+                                <option value="selection">🎯 Selection Sort</option>
+                                <option value="insertion">📥 Insertion Sort</option>
+                            </optgroup>
+                            <optgroup label="Efficient / Fast O(N log N)">
+                                <option value="merge">🔀 Merge Sort</option>
+                                <option value="quick">⚡ Quick Sort</option>
+                                <option value="heap">🌲 Heap Sort</option>
+                            </optgroup>
+                        </select>
+                        <div class="text-right text-xs md:text-sm font-mono flex gap-3">
+                            <div><span class="text-slate-400">Comps:</span> <span id="comps-a" class="font-bold text-amber-500">0</span></div>
+                            <div><span class="text-slate-400">Swaps:</span> <span id="swaps-a" class="font-bold text-emerald-500">0</span></div>
+                        </div>
+                    </div>
+                    <p id="desc-a" class="text-xs text-slate-500 italic mt-1 min-h-[2.5rem]"></p>
+                </div>
+                
+                <div class="canvas-container" id="container-a">
+                    <canvas id="canvas-a"></canvas>
+                </div>
+            </div>
+
+            <!-- ALGORITHM B -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-3">
+                <div class="flex flex-col gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <div class="flex justify-between items-center">
+                        <select id="select-b" class="bg-white border border-slate-300 text-slate-800 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 pr-8 font-bold shadow-sm outline-none cursor-pointer flex-1 mr-4">
+                            <optgroup label="Simple / Slow O(N²)">
+                                <option value="bubble">🫧 Bubble Sort</option>
+                                <option value="cocktail">🍸 Cocktail Shaker Sort</option>
+                                <option value="selection">🎯 Selection Sort</option>
+                                <option value="insertion">📥 Insertion Sort</option>
+                            </optgroup>
+                            <optgroup label="Efficient / Fast O(N log N)">
+                                <option value="merge">🔀 Merge Sort</option>
+                                <option value="quick" selected>⚡ Quick Sort</option>
+                                <option value="heap">🌲 Heap Sort</option>
+                            </optgroup>
+                        </select>
+                        <div class="text-right text-xs md:text-sm font-mono flex gap-3">
+                            <div><span class="text-slate-400">Comps:</span> <span id="comps-b" class="font-bold text-amber-500">0</span></div>
+                            <div><span class="text-slate-400">Swaps:</span> <span id="swaps-b" class="font-bold text-emerald-500">0</span></div>
+                        </div>
+                    </div>
+                    <p id="desc-b" class="text-xs text-slate-500 italic mt-1 min-h-[2.5rem]"></p>
+                </div>
+                
+                <div class="canvas-container" id="container-b">
+                    <canvas id="canvas-b"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="text-center">
+            <a href="index.html" class="text-slate-500 hover:text-blue-600 font-medium transition-colors inline-flex items-center gap-2 mb-4 border border-slate-200 px-4 py-2 rounded-lg bg-white shadow-sm">
+                &larr; Back to Mímisbrunnr Hub
+            </a>
+        </div>
+    </main>
+
+    <!-- FOOTER / ATTRIBUTION SECTION -->
+    <footer class="w-full max-w-6xl mt-8 mb-4 border-t border-slate-200 pt-6 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500">
+        <div>
+            Built with ☕ by <a href="https://github.com/sambit-giri" target="_blank" rel="noopener noreferrer" class="font-bold text-blue-600 hover:underline">Sambit Giri</a>
+        </div>
+        <div class="flex gap-4 items-center">
+            <a href="https://github.com/sambit-giri/mimirs-well" target="_blank" rel="noopener noreferrer" class="hover:text-slate-800 transition-colors flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+                Star on GitHub
+            </a>
+            <span>&bull;</span>
+            <span>MIT License</span>
+        </div>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const btnReset = document.getElementById('btn-reset');
+        const btnStart = document.getElementById('btn-start');
+        const sizeSlider = document.getElementById('size-slider');
+        const speedSlider = document.getElementById('speed-slider');
+        const selectA = document.getElementById('select-a');
+        const selectB = document.getElementById('select-b');
+        const descA = document.getElementById('desc-a');
+        const descB = document.getElementById('desc-b');
+        
+        // Colors mapping
+        const COLOR_DEFAULT = '#3b82f6'; // Blue
+        const COLOR_ACTIVE = '#ef4444';  // Red
+        const COLOR_SORTED = '#10b981';  // Emerald
+        const COLOR_SECONDARY = '#f59e0b';// Amber
+        const COLOR_MERGE = '#8b5cf6';   // Purple
+
+        // Dictionary of algorithm explanations
+        const ALGO_DESCRIPTIONS = {
+            'bubble': 'Repeatedly steps through the list, comparing adjacent elements and swapping them if they are out of order. Max values "bubble" to the top.',
+            'cocktail': 'A bidirectional variation of Bubble Sort. It passes back and forth, moving the maximum to the right and the minimum to the left.',
+            'selection': 'Divides the array into sorted/unsorted parts. Repeatedly selects the absolute smallest item from the unsorted part and moves it to the front.',
+            'insertion': 'Builds the sorted array one element at a time by picking up the next item and inserting it precisely into its correct position.',
+            'merge': 'A divide-and-conquer strategy that splits the array in half, recursively sorts the halves, and seamlessly merges them back together.',
+            'quick': 'Picks a "pivot", partitions the array so smaller items are on the left and larger on the right, then recursively sorts the sub-arrays.',
+            'heap': 'Builds a "max-heap" tree structure from the data, then repeatedly extracts the absolute largest element and rebuilds the heap.'
+        };
+
+        // Master state
+        let masterArray = [];
+        let arraySize = parseInt(sizeSlider.value);
+        let delayMs = calculateDelay(parseInt(speedSlider.value));
+        let currentRaceId = 0;
+        let isRacing = false;
+
+        const stateA = initCanvasState('a');
+        const stateB = initCanvasState('b');
+
+        function initCanvasState(id) {
+            const canvas = document.getElementById(`canvas-${id}`);
+            return {
+                id: id,
+                canvas: canvas,
+                ctx: canvas.getContext('2d'),
+                container: document.getElementById(`container-${id}`),
+                elComps: document.getElementById(`comps-${id}`),
+                elSwaps: document.getElementById(`swaps-${id}`),
+                array: [],
+                colors: [],
+                comps: 0,
+                swaps: 0
+            };
+        }
+
+        // Window resize handler
+        function resizeCanvases() {
+            [stateA, stateB].forEach(state => {
+                state.canvas.width = state.container.clientWidth;
+                state.canvas.height = state.container.clientHeight;
+                if (!isRacing) drawArray(state);
+            });
+        }
+        window.addEventListener('resize', resizeCanvases);
+
+        const sleep = (ms, raceId) => new Promise((resolve, reject) => {
+            setTimeout(() => {
+                if (raceId !== currentRaceId) reject("Aborted");
+                else resolve();
+            }, ms);
+        });
+
+        function calculateDelay(sliderValue) {
+            return Math.floor(Math.pow(100 - sliderValue, 3) / 1000) || 1; 
+        }
+
+        // Initialize explanations
+        function updateDescriptions() {
+            descA.textContent = ALGO_DESCRIPTIONS[selectA.value];
+            descB.textContent = ALGO_DESCRIPTIONS[selectB.value];
+        }
+
+        // 1. Generate master array
+        function generateArray() {
+            currentRaceId++; 
+            isRacing = false;
+            masterArray = [];
+            arraySize = parseInt(sizeSlider.value);
+            
+            for (let i = 0; i < arraySize; i++) {
+                masterArray.push(Math.random() * 0.9 + 0.05);
+            }
+            
+            resetCompetitor(stateA);
+            resetCompetitor(stateB);
+            
+            btnStart.disabled = false;
+            btnStart.classList.remove('opacity-50', 'cursor-not-allowed');
+            [selectA, selectB, sizeSlider].forEach(el => el.disabled = false);
+        }
+
+        function resetCompetitor(state) {
+            state.array = [...masterArray]; 
+            state.colors = new Array(arraySize).fill(COLOR_DEFAULT);
+            state.comps = 0;
+            state.swaps = 0;
+            updateStatsUI(state);
+            drawArray(state);
+        }
+
+        function updateStatsUI(state) {
+            state.elComps.textContent = state.comps;
+            state.elSwaps.textContent = state.swaps;
+        }
+
+        function drawArray(state) {
+            const ctx = state.ctx;
+            const canvas = state.canvas;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const gap = arraySize < 40 ? 2 : (arraySize < 80 ? 1 : 0);
+            const barWidth = (canvas.width / arraySize) - gap;
+
+            for (let i = 0; i < arraySize; i++) {
+                ctx.fillStyle = state.colors[i] || COLOR_DEFAULT;
+                const barHeight = state.array[i] * canvas.height;
+                const x = i * (canvas.width / arraySize);
+                const y = canvas.height - barHeight;
+                
+                ctx.beginPath();
+                ctx.roundRect(x, y, Math.max(1, barWidth), barHeight, [3, 3, 0, 0]);
+                ctx.fill();
+            }
+        }
+
+        // --- THE RACE CONTROLLER ---
+        async function startRace() {
+            currentRaceId++; 
+            const raceId = currentRaceId;
+            isRacing = true;
+            
+            btnStart.disabled = true;
+            btnStart.classList.add('opacity-50', 'cursor-not-allowed');
+            [selectA, selectB, sizeSlider].forEach(el => el.disabled = true);
+            
+            resetCompetitor(stateA);
+            resetCompetitor(stateB);
+
+            const algoA = getAlgorithm(selectA.value);
+            const algoB = getAlgorithm(selectB.value);
+
+            const promiseA = runAlgorithm(algoA, stateA, raceId);
+            const promiseB = runAlgorithm(algoB, stateB, raceId);
+
+            try {
+                await Promise.all([promiseA, promiseB]);
+            } catch (error) {
+                if (error !== "Aborted") console.error(error);
+            } finally {
+                if (raceId === currentRaceId) {
+                    isRacing = false;
+                    [selectA, selectB, sizeSlider].forEach(el => el.disabled = false);
+                }
+            }
+        }
+
+        function getAlgorithm(type) {
+            switch(type) {
+                case 'bubble': return bubbleSort;
+                case 'cocktail': return cocktailSort;
+                case 'selection': return selectionSort;
+                case 'insertion': return insertionSort;
+                case 'merge': return mergeSortWrapper;
+                case 'quick': return quickSortWrapper;
+                case 'heap': return heapSortWrapper;
+                default: return bubbleSort;
+            }
+        }
+
+        async function runAlgorithm(algoFn, state, raceId) {
+            await algoFn(state, raceId);
+            for(let i=0; i<arraySize; i++) state.colors[i] = COLOR_SORTED;
+            drawArray(state);
+        }
+
+        // --- THE ALGORITHMS ---
+
+        // 1. Bubble Sort
+        async function bubbleSort(state, id) {
+            for (let i = 0; i < arraySize - 1; i++) {
+                let swapped = false;
+                for (let j = 0; j < arraySize - i - 1; j++) {
+                    state.colors[j] = COLOR_ACTIVE; state.colors[j + 1] = COLOR_ACTIVE;
+                    drawArray(state); await sleep(delayMs, id);
+
+                    state.comps++; updateStatsUI(state);
+                    if (state.array[j] > state.array[j + 1]) {
+                        state.swaps++; updateStatsUI(state);
+                        let temp = state.array[j]; state.array[j] = state.array[j + 1]; state.array[j + 1] = temp;
+                        swapped = true;
+                        drawArray(state); await sleep(delayMs, id);
+                    }
+                    state.colors[j] = COLOR_DEFAULT; state.colors[j + 1] = COLOR_DEFAULT;
+                }
+                state.colors[arraySize - 1 - i] = COLOR_SORTED;
+                if (!swapped) break; 
+            }
+            state.colors[0] = COLOR_SORTED;
+        }
+
+        // 2. Cocktail Shaker Sort
+        async function cocktailSort(state, id) {
+            let swapped = true;
+            let start = 0;
+            let end = arraySize - 1;
+
+            while (swapped) {
+                swapped = false;
+                for (let i = start; i < end; ++i) {
+                    state.colors[i] = COLOR_ACTIVE; state.colors[i + 1] = COLOR_ACTIVE;
+                    drawArray(state); await sleep(delayMs, id);
+                    
+                    state.comps++; updateStatsUI(state);
+                    if (state.array[i] > state.array[i + 1]) {
+                        state.swaps++; updateStatsUI(state);
+                        let t = state.array[i]; state.array[i] = state.array[i + 1]; state.array[i + 1] = t;
+                        swapped = true;
+                        drawArray(state); await sleep(delayMs, id);
+                    }
+                    state.colors[i] = COLOR_DEFAULT; state.colors[i + 1] = COLOR_DEFAULT;
+                }
+                if (!swapped) break;
+                swapped = false;
+                state.colors[end] = COLOR_SORTED;
+                end = end - 1;
+
+                for (let i = end - 1; i >= start; --i) {
+                    state.colors[i] = COLOR_ACTIVE; state.colors[i + 1] = COLOR_ACTIVE;
+                    drawArray(state); await sleep(delayMs, id);
+                    
+                    state.comps++; updateStatsUI(state);
+                    if (state.array[i] > state.array[i + 1]) {
+                        state.swaps++; updateStatsUI(state);
+                        let t = state.array[i]; state.array[i] = state.array[i + 1]; state.array[i + 1] = t;
+                        swapped = true;
+                        drawArray(state); await sleep(delayMs, id);
+                    }
+                    state.colors[i] = COLOR_DEFAULT; state.colors[i + 1] = COLOR_DEFAULT;
+                }
+                state.colors[start] = COLOR_SORTED;
+                start = start + 1;
+            }
+            for(let i=0; i<arraySize; i++) state.colors[i] = COLOR_SORTED;
+        }
+
+        // 3. Selection Sort
+        async function selectionSort(state, id) {
+            for (let i = 0; i < arraySize - 1; i++) {
+                let minIdx = i;
+                state.colors[i] = COLOR_SECONDARY; 
+                
+                for (let j = i + 1; j < arraySize; j++) {
+                    state.colors[j] = COLOR_ACTIVE; 
+                    drawArray(state); await sleep(delayMs, id);
+                    
+                    state.comps++; updateStatsUI(state);
+                    if (state.array[j] < state.array[minIdx]) {
+                        if (minIdx !== i) state.colors[minIdx] = COLOR_DEFAULT; 
+                        minIdx = j;
+                        state.colors[minIdx] = COLOR_MERGE; 
+                    } else {
+                        state.colors[j] = COLOR_DEFAULT;
+                    }
+                }
+                
+                if (minIdx !== i) {
+                    state.swaps++; updateStatsUI(state);
+                    let temp = state.array[minIdx]; state.array[minIdx] = state.array[i]; state.array[i] = temp;
+                    drawArray(state); await sleep(delayMs, id);
+                }
+                state.colors[minIdx] = COLOR_DEFAULT; state.colors[i] = COLOR_SORTED;
+            }
+        }
+
+        // 4. Insertion Sort
+        async function insertionSort(state, id) {
+            state.colors[0] = COLOR_SORTED;
+            for (let i = 1; i < arraySize; i++) {
+                let key = state.array[i];
+                let j = i - 1;
+                
+                state.colors[i] = COLOR_SECONDARY;
+                drawArray(state); await sleep(delayMs, id);
+
+                while (j >= 0) {
+                    state.comps++; updateStatsUI(state);
+                    state.colors[j] = COLOR_ACTIVE;
+                    drawArray(state); await sleep(delayMs, id);
+                    
+                    if (state.array[j] > key) {
+                        state.swaps++; updateStatsUI(state);
+                        state.array[j + 1] = state.array[j];
+                        state.colors[j] = COLOR_DEFAULT; state.colors[j + 1] = COLOR_SORTED;
+                        j = j - 1;
+                    } else {
+                        state.colors[j] = COLOR_SORTED;
+                        break;
+                    }
+                }
+                state.swaps++; updateStatsUI(state);
+                state.array[j + 1] = key;
+                state.colors[j + 1] = COLOR_SORTED;
+                drawArray(state);
+            }
+        }
+
+        // 5. Merge Sort
+        async function mergeSortWrapper(state, id) {
+            await mergeSort(state, id, 0, arraySize - 1);
+        }
+        async function merge(state, id, left, mid, right) {
+            let n1 = mid - left + 1; let n2 = right - mid;
+            let L = new Array(n1); let R = new Array(n2);
+
+            for (let i = 0; i < n1; i++) L[i] = state.array[left + i];
+            for (let j = 0; j < n2; j++) R[j] = state.array[mid + 1 + j];
+
+            let i = 0, j = 0, k = left;
+
+            while (i < n1 && j < n2) {
+                state.colors[left + i] = COLOR_ACTIVE; state.colors[mid + 1 + j] = COLOR_ACTIVE;
+                drawArray(state); await sleep(delayMs, id);
+
+                state.comps++; updateStatsUI(state);
+                if (L[i] <= R[j]) { state.array[k] = L[i]; i++; } 
+                else { state.array[k] = R[j]; j++; }
+                
+                state.swaps++; updateStatsUI(state);
+                state.colors[k] = COLOR_MERGE; k++;
+                drawArray(state); await sleep(delayMs, id);
+                
+                for(let c=left; c<=right; c++) { if(state.colors[c] === COLOR_ACTIVE) state.colors[c] = COLOR_DEFAULT; }
+            }
+
+            while (i < n1) {
+                state.array[k] = L[i]; state.swaps++; updateStatsUI(state);
+                state.colors[k] = COLOR_MERGE; i++; k++;
+                drawArray(state); await sleep(delayMs, id);
+            }
+            while (j < n2) {
+                state.array[k] = R[j]; state.swaps++; updateStatsUI(state);
+                state.colors[k] = COLOR_MERGE; j++; k++;
+                drawArray(state); await sleep(delayMs, id);
+            }
+            for(let c=left; c<=right; c++) state.colors[c] = COLOR_DEFAULT;
+        }
+        async function mergeSort(state, id, left, right) {
+            if (left >= right) return;
+            let mid = left + Math.floor((right - left) / 2);
+            await mergeSort(state, id, left, mid);
+            await mergeSort(state, id, mid + 1, right);
+            await merge(state, id, left, mid, right);
+        }
+
+        // 6. Quick Sort
+        async function quickSortWrapper(state, id) {
+            await quickSort(state, id, 0, arraySize - 1);
+        }
+        async function partition(state, id, low, high) {
+            let pivot = state.array[high];
+            state.colors[high] = COLOR_SECONDARY; 
+            let i = low - 1;
+
+            for (let j = low; j <= high - 1; j++) {
+                state.colors[j] = COLOR_ACTIVE;
+                if (i >= low) state.colors[i] = COLOR_ACTIVE;
+                drawArray(state); await sleep(delayMs, id);
+
+                state.comps++; updateStatsUI(state);
+                if (state.array[j] < pivot) {
+                    i++;
+                    state.swaps++; updateStatsUI(state);
+                    let temp = state.array[i]; state.array[i] = state.array[j]; state.array[j] = temp;
+                    drawArray(state); await sleep(delayMs, id);
+                }
+                state.colors[j] = COLOR_DEFAULT;
+                if (i >= low) state.colors[i] = COLOR_DEFAULT;
+            }
+            state.swaps++; updateStatsUI(state);
+            let temp = state.array[i + 1]; state.array[i + 1] = state.array[high]; state.array[high] = temp;
+            
+            state.colors[high] = COLOR_DEFAULT; state.colors[i + 1] = COLOR_SORTED; 
+            drawArray(state); await sleep(delayMs, id);
+            return i + 1;
+        }
+        async function quickSort(state, id, low, high) {
+            if (low < high) {
+                let pi = await partition(state, id, low, high);
+                await quickSort(state, id, low, pi - 1);
+                await quickSort(state, id, pi + 1, high);
+            } else if (low === high) {
+                state.colors[low] = COLOR_SORTED;
+                drawArray(state);
+            }
+        }
+
+        // 7. Heap Sort
+        async function heapSortWrapper(state, id) {
+            for (let i = Math.floor(arraySize / 2) - 1; i >= 0; i--) {
+                await heapify(state, id, arraySize, i);
+            }
+            for (let i = arraySize - 1; i > 0; i--) {
+                state.colors[0] = COLOR_SECONDARY; state.colors[i] = COLOR_SECONDARY;
+                drawArray(state); await sleep(delayMs, id);
+
+                state.swaps++; updateStatsUI(state);
+                let temp = state.array[0]; state.array[0] = state.array[i]; state.array[i] = temp;
+                
+                state.colors[i] = COLOR_SORTED; state.colors[0] = COLOR_DEFAULT;
+                drawArray(state); await sleep(delayMs, id);
+
+                await heapify(state, id, i, 0);
+            }
+            state.colors[0] = COLOR_SORTED;
+        }
+        async function heapify(state, id, n, i) {
+            let largest = i;
+            let left = 2 * i + 1;
+            let right = 2 * i + 2;
+
+            if (left < n) {
+                state.comps++; updateStatsUI(state);
+                if (state.array[left] > state.array[largest]) largest = left;
+            }
+            if (right < n) {
+                state.comps++; updateStatsUI(state);
+                if (state.array[right] > state.array[largest]) largest = right;
+            }
+
+            if (largest !== i) {
+                state.colors[i] = COLOR_ACTIVE; state.colors[largest] = COLOR_ACTIVE;
+                drawArray(state); await sleep(delayMs, id);
+
+                state.swaps++; updateStatsUI(state);
+                let swap = state.array[i]; state.array[i] = state.array[largest]; state.array[largest] = swap;
+                
+                drawArray(state); await sleep(delayMs, id);
+                state.colors[i] = COLOR_DEFAULT; state.colors[largest] = COLOR_DEFAULT;
+
+                await heapify(state, id, n, largest);
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+        btnReset.addEventListener('click', generateArray);
+        btnStart.addEventListener('click', startRace);
+        
+        selectA.addEventListener('change', updateDescriptions);
+        selectB.addEventListener('change', updateDescriptions);
+
+        sizeSlider.addEventListener('input', (e) => {
+            document.getElementById('size-label').textContent = e.target.value;
+            generateArray(); 
+        });
+        
+        speedSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            delayMs = calculateDelay(val);
+            
+            const label = document.getElementById('speed-label');
+            if (val < 25) label.textContent = "Very Slow";
+            else if (val < 50) label.textContent = "Slow";
+            else if (val < 80) label.textContent = "Normal";
+            else if (val < 95) label.textContent = "Fast";
+            else label.textContent = "Ludicrous";
+        });
+
+        // Initialize
+        updateDescriptions();
+        resizeCanvases();
+        generateArray();
+
+    </script>
+</body>
+</html>
