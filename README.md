@@ -1,11 +1,12 @@
 <div align="center">
 <img src="docs/logo.png" alt="Mímisbrunnr Logo" width="160" />
 
-
 # Mímisbrunnr — Mimir's Well: The Intuition Lab
 **Building a "gut feeling" for abstract math and physics concepts through code.**
 
 > "What I cannot create, I do not understand." — Richard Feynman
+
+</div>
 
 ## 🔭 The Philosophy
 
