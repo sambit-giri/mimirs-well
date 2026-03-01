@@ -4,165 +4,193 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mímisbrunnr | The Intuition Lab</title>
+    <!-- Import Academic Serif (Lora) and Clean UI Sans (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f8fafc;
-            color: #1e293b;
+            background-color: #ffffff;
+            color: #222222;
+        }
+        .font-sans { font-family: 'Inter', -apple-system, sans-serif; }
+        .font-serif { font-family: 'Lora', Georgia, serif; }
+        
+        /* Subtle link underlines that appear on hover, typical of academic blogs */
+        .distill-link {
+            text-decoration-color: transparent;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 4px;
+            transition: text-decoration-color 0.2s ease, color 0.2s ease;
+        }
+        .distill-link:hover {
+            text-decoration-color: #2563eb;
+            color: #2563eb;
         }
     </style>
 </head>
-<body class="min-h-screen text-slate-800 selection:bg-blue-100 selection:text-blue-900" id="top">
+<body class="min-h-screen antialiased selection:bg-blue-100 selection:text-blue-900" id="top">
 
-    <div class="max-w-6xl mx-auto px-4 md:px-8 py-8 flex flex-col md:flex-row gap-8 lg:gap-12 items-start">
+    <div class="max-w-5xl mx-auto px-5 md:px-8 py-6 md:py-8 flex flex-col md:flex-row gap-6 lg:gap-8 items-start">
         
-        <!-- FROZEN LEFT SIDEBAR -->
-        <aside class="w-full md:w-1/3 lg:w-1/4 md:sticky md:top-8 shrink-0 flex flex-col gap-6">
+        <!-- FROZEN LEFT SIDEBAR (Navigation & Branding) -->
+        <aside class="w-full md:w-1/4 md:sticky md:top-6 shrink-0 flex flex-col gap-4">
             
             <!-- Branding -->
-            <a href="#top" class="text-center md:text-left flex flex-col items-center md:items-start gap-4 group cursor-pointer block">
-                <img src="logo.png" alt="Mímisbrunnr Logo" class="w-24 h-24 rounded-2xl shadow-sm object-cover border-2 border-white transition-transform group-hover:scale-105">
+            <a href="#top" class="flex items-center gap-3 group cursor-pointer block">
+                <img src="logo.png" alt="Mímisbrunnr Logo" class="w-10 h-10 rounded-lg object-cover border border-slate-200 grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300">
                 <div>
-                    <h1 class="text-3xl font-extrabold text-slate-800 mb-1 group-hover:text-blue-600 transition-colors">Mímisbrunnr</h1>
+                    <h1 class="font-sans text-lg font-bold tracking-tight text-slate-900">Mímisbrunnr</h1>
                 </div>
             </a>
 
-            <!-- Navigation Banner -->
-            <nav class="bg-white rounded-xl shadow-sm border border-slate-200 p-2 overflow-hidden">
-                <ul class="text-sm font-semibold text-slate-600 flex flex-col">
+            <!-- Navigation -->
+            <nav>
+                <h3 class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Contents</h3>
+                <ul class="font-sans text-sm font-medium text-slate-500 flex flex-col gap-1">
                     <li>
-                        <a href="#visualisations" class="block px-4 py-2.5 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors flex items-center gap-2">
-                            <span>🌐</span> Interactive Visualisations
-                        </a>
+                        <a href="#about" class="hover:text-slate-900 transition-colors">The Philosophy</a>
                     </li>
                     <li>
-                        <a href="#notebooks" class="block px-4 py-2.5 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors flex items-center gap-2">
-                            <span>📂</span> Python Notebooks
-                        </a>
+                        <a href="#visualisations" class="hover:text-slate-900 transition-colors">Interactive Visualisations</a>
+                    </li>
+                    <li>
+                        <a href="#notebooks" class="hover:text-slate-900 transition-colors">Python Notebooks</a>
                     </li>
                 </ul>
             </nav>
 
-            <!-- Quote -->
-            <blockquote class="border-l-4 border-blue-500 bg-white p-4 rounded-r-xl shadow-sm text-slate-600 italic text-base font-serif">
-                "What I cannot create, I do not understand." <br>
-                <span class="block mt-2 text-xs text-slate-400 font-sans font-bold not-italic uppercase tracking-wide">— Richard Feynman</span>
-            </blockquote>
-            
-            <p class="text-slate-500 text-sm hidden md:block mt-2">
-                Building a "gut feeling" for abstract math and physics concepts through code.
-            </p>
-
         </aside>
 
-        <!-- MAIN SCROLLING CONTENT -->
-        <main class="w-full md:w-2/3 lg:w-3/4 flex flex-col gap-8">
+        <!-- MAIN SCROLLING CONTENT (The "Document") -->
+        <main class="w-full md:w-3/4 max-w-2xl flex flex-col gap-6">
             
-            <!-- About Section -->
-            <section id="about" class="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-slate-200 scroll-mt-8">
-                <h2 class="text-2xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">🔭 Mimir's Well: The Intuition Lab</h2>
-                <p class="text-slate-600 leading-relaxed">
-                    The core mission of this platform is to bridge the gap between abstract formalism and concrete understanding. 
-                    While textbooks focus on the mechanics of solving a problem, this project focuses on the <strong>intuition</strong> behind the solution. 
-                    We use simulations, interactive visualisations, and symbolic solving to move from "following the rules" to "internalizing the behavior" of complex systems.
+            <!-- Header / Abstract Section -->
+            <header>
+                <h1 class="font-serif text-3xl md:text-4xl font-medium text-slate-900 mb-2 leading-tight">
+                    Mimir's Well: <br>The Intuition Lab
+                </h1>
+                
+                <p class="font-serif text-base md:text-lg text-slate-600 leading-snug mb-3">
+                    Building a "gut feeling" for abstract math and physics concepts through code.
                 </p>
+
+                <blockquote class="font-serif text-sm md:text-base text-slate-500 italic border-l-2 border-slate-300 pl-4 py-0.5 mb-2">
+                    "What I cannot create, I do not understand."
+                    <footer class="font-sans text-[10px] font-semibold not-italic text-slate-400 uppercase tracking-widest mt-1.5">— Richard Feynman</footer>
+                </blockquote>
+            </header>
+
+            <!-- About Section -->
+            <section id="about" class="scroll-mt-6">
+                <div class="font-serif text-sm md:text-base text-slate-700 leading-normal space-y-2">
+                    <p>
+                        The core mission of this platform is to bridge the gap between abstract formalism and concrete understanding.
+                    </p>
+                    <p>
+                        While traditional textbooks focus strictly on the mechanics of solving a problem, this project focuses entirely on the <strong>intuition</strong> behind the solution. We use interactive simulations, real-time algorithms, and symbolic solving to move from "following the rules" to "internalizing the behavior" of complex systems.
+                    </p>
+                </div>
             </section>
+
+            <hr class="border-slate-100">
 
             <!-- Visualisations Section -->
-            <section id="visualisations" class="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-slate-200 scroll-mt-8">
-                <h2 class="text-2xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">🌐 1. Interactive Visualisations</h2>
-                <p class="text-slate-600 mb-6">Browser-based apps that let you explore algorithms and simulations without running any code locally.</p>
+            <section id="visualisations" class="scroll-mt-6">
+                <h2 class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Interactive Visualisations</h2>
                 
-                <ul class="space-y-4">
-                    <li class="p-4 rounded-lg bg-slate-50 border border-slate-100 hover:border-emerald-300 transition-colors border-l-4 border-l-emerald-500 shadow-sm">
-                        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                            <a href="sorting.html" class="text-lg font-bold text-emerald-600 hover:text-emerald-800 hover:underline flex items-center gap-2">
-                                <span>📊 01. The Great Sort Race</span>
-                            </a>
-                            <div class="flex gap-2 text-xs font-semibold">
-                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Algorithms</span>
-                                <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded-full">Showdown</span>
-                            </div>
-                        </div>
-                        <p class="text-sm text-slate-500 mt-2">Compare the efficiency of O(N²) vs O(N log N) sorting algorithms side-by-side.</p>
-                    </li>
+                <div class="flex flex-col gap-3.5">
                     
-                    <li class="p-4 rounded-lg bg-slate-50 border border-slate-100 hover:border-slate-300 transition-colors border-l-4 border-l-slate-300">
-                        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                            <a href="clustering.html" class="text-lg font-bold text-slate-700 hover:text-blue-600 hover:underline flex items-center gap-2">
-                                <span>🌌 02. Cluster Finding</span> <span class="text-sm font-normal text-amber-600 ml-1">(Coming Soon)</span>
-                            </a>
-                            <div class="flex gap-2 text-xs font-semibold">
-                                <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">Machine Learning</span>
-                                <span class="bg-teal-100 text-teal-800 px-2 py-1 rounded-full">Data Science</span>
-                            </div>
-                        </div>
-                        <p class="text-sm text-slate-500 mt-2">Discover hidden structures and group data using K-Means, FoF, Meanshift, and DBSCAN.</p>
-                    </li>
+                    <!-- Item 1 -->
+                    <article class="group">
+                        <a href="sorting.html" class="block">
+                            <header class="flex flex-col md:flex-row md:justify-between md:items-baseline gap-1 mb-0.5">
+                                <h3 class="font-sans text-lg font-semibold text-slate-900 distill-link">01. The Great Sort Race</h3>
+                                <div class="font-sans text-[10px] font-medium uppercase tracking-widest text-slate-400">Algorithms</div>
+                            </header>
+                            <p class="font-serif text-sm text-slate-600 leading-snug">Compare the efficiency and real-time mechanics of O(N²) versus O(N log N) sorting algorithms side-by-side.</p>
+                        </a>
+                    </article>
 
-                    <li class="p-4 rounded-lg bg-slate-50 border border-slate-100 hover:border-slate-300 transition-colors border-l-4 border-l-slate-300">
-                        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                            <a href="mcmc.html" class="text-lg font-bold text-slate-700 hover:text-blue-600 hover:underline flex items-center gap-2">
-                                <span>🎲 03. MCMC Sampling</span> <span class="text-sm font-normal text-amber-600 ml-1">(Coming Soon)</span>
-                            </a>
-                            <div class="flex gap-2 text-xs font-semibold">
-                                <span class="bg-rose-100 text-rose-800 px-2 py-1 rounded-full">Statistics</span>
-                                <span class="bg-fuchsia-100 text-fuchsia-800 px-2 py-1 rounded-full">Sampling</span>
-                            </div>
-                        </div>
-                        <p class="text-sm text-slate-500 mt-2">Visualize Metropolis-Hastings and how walkers explore complex probability distributions.</p>
-                    </li>
-                </ul>
+                    <!-- Item 2 -->
+                    <article class="group">
+                        <a href="clustering.html" class="block">
+                            <header class="flex flex-col md:flex-row md:justify-between md:items-baseline gap-1 mb-0.5">
+                                <h3 class="font-sans text-lg font-semibold text-slate-900 distill-link">02. Cluster Finding</h3>
+                                <div class="font-sans text-[10px] font-medium uppercase tracking-widest text-slate-400">Machine Learning</div>
+                            </header>
+                            <p class="font-serif text-sm text-slate-600 leading-snug">Discover hidden structures and group data using varied geometric assumptions, comparing K-Means centroids to DBSCAN density mapping.</p>
+                        </a>
+                    </article>
+
+                    <!-- Item 3 (Coming Soon) -->
+                    <article class="opacity-60">
+                        <header class="flex flex-col md:flex-row md:justify-between md:items-baseline gap-1 mb-0.5">
+                            <h3 class="font-sans text-lg font-semibold text-slate-500 flex items-center gap-2">
+                                03. MCMC Sampling
+                                <span class="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-amber-600 border border-amber-200 px-1 py-0.5 rounded-sm leading-none">Coming Soon</span>
+                            </h3>
+                            <div class="font-sans text-[10px] font-medium uppercase tracking-widest text-slate-400">Statistics</div>
+                        </header>
+                        <p class="font-serif text-sm text-slate-500 leading-snug">Visualize the Metropolis-Hastings algorithm and observe how random walkers explore complex probability distributions.</p>
+                    </article>
+
+                </div>
             </section>
 
+            <hr class="border-slate-100">
+
             <!-- Notebooks Section -->
-            <section id="notebooks" class="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-slate-200 scroll-mt-8">
-                <h2 class="text-2xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">📂 2. Python Notebooks</h2>
-                <p class="text-slate-600 mb-6">Self-contained mathematical and physical experiments. View the code directly on GitHub:</p>
+            <section id="notebooks" class="scroll-mt-6">
+                <h2 class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Python Notebooks</h2>
                 
-                <ul class="space-y-4">
-                    <li class="p-4 rounded-lg bg-slate-50 border border-slate-100 hover:border-blue-300 transition-colors border-l-4 border-l-blue-500">
-                        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                            <a href="https://github.com/sambit-giri/mimirs-well/tree/main/notebooks/01-monty-hall" target="_blank" class="text-lg font-bold text-blue-600 hover:text-blue-800 hover:underline">
-                                01. The Monty Hall Paradox ↗
-                            </a>
-                            <div class="flex gap-2 text-xs font-semibold">
-                                <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">Probability</span>
-                                <span class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full">Monte Carlo</span>
-                            </div>
-                        </div>
-                    </li>
-                    <li class="p-4 rounded-lg bg-slate-50 border border-slate-100 hover:border-slate-300 transition-colors border-l-4 border-l-slate-300">
-                        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                            <a href="https://github.com/sambit-giri/mimirs-well/tree/main/notebooks/02-random-walks" target="_blank" class="text-lg font-bold text-slate-700 hover:text-blue-600 hover:underline">
-                                02. Random Walks 1D/2D <span class="text-sm font-normal text-amber-600 ml-1">(In Progress)</span> ↗
-                            </a>
-                            <div class="flex gap-2 text-xs font-semibold">
-                                <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded-full">Stochastic Processes</span>
-                            </div>
-                        </div>
-                    </li>
-                </ul>
+                <div class="flex flex-col gap-3.5">
+                    
+                    <!-- Item 1 -->
+                    <article class="group">
+                        <a href="https://github.com/sambit-giri/mimirs-well/tree/main/notebooks/01-monty-hall" target="_blank" class="block">
+                            <header class="flex flex-col md:flex-row md:justify-between md:items-baseline gap-1 mb-0.5">
+                                <h3 class="font-sans text-lg font-semibold text-slate-900 distill-link flex items-center gap-1.5">
+                                    01. The Monty Hall Paradox 
+                                    <span class="text-slate-400 text-xs font-normal relative top-[1px]">↗</span>
+                                </h3>
+                                <div class="font-sans text-[10px] font-medium uppercase tracking-widest text-slate-400">Probability</div>
+                            </header>
+                            <p class="font-serif text-sm text-slate-600 leading-snug">A Monte Carlo simulation proving the counter-intuitive probability behind the famous game show problem.</p>
+                        </a>
+                    </article>
+
+                    <!-- Item 2 -->
+                    <article class="opacity-60">
+                        <a href="https://github.com/sambit-giri/mimirs-well/tree/main/notebooks/02-random-walks" target="_blank" class="block">
+                            <header class="flex flex-col md:flex-row md:justify-between md:items-baseline gap-1 mb-0.5">
+                                <h3 class="font-sans text-lg font-semibold text-slate-500 flex items-center gap-2">
+                                    02. Random Walks 1D/2D
+                                    <span class="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-amber-600 border border-amber-200 px-1 py-0.5 rounded-sm leading-none">In Progress</span>
+                                    <span class="text-slate-400 text-xs font-normal relative top-[1px]">↗</span>
+                                </h3>
+                                <div class="font-sans text-[10px] font-medium uppercase tracking-widest text-slate-400">Stochastics</div>
+                            </header>
+                            <p class="font-serif text-sm text-slate-500 leading-snug">Simulating Brownian motion and exploring the mathematical properties of unguided stochastic processes.</p>
+                        </a>
+                    </article>
+
+                </div>
             </section>
 
             <!-- FOOTER -->
-            <footer class="mt-4 pt-6 flex flex-col gap-4 text-sm text-slate-500 mb-8 border-t border-slate-200">
-                <p class="italic text-slate-400">
-                    "In Norse mythology, Mímisbrunnr is the source of wisdom hidden beneath the roots of Yggdrasil."
-                </p>
-                <div class="flex flex-col md:flex-row justify-between items-center md:items-start gap-4 mt-2">
-                    <div>
-                        Built with ☕ by <a href="https://github.com/sambit-giri" target="_blank" rel="noopener noreferrer" class="font-bold text-blue-600 hover:underline">Sambit Giri</a>
-                    </div>
-                    <div class="flex gap-4 items-center">
-                        <a href="https://github.com/sambit-giri/mimirs-well" target="_blank" rel="noopener noreferrer" class="hover:text-slate-800 transition-colors flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-                            Star on GitHub
-                        </a>
-                        <span>&bull;</span>
-                        <span>MIT License</span>
-                    </div>
+            <footer class="mt-4 pt-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-3">
+                <div class="font-sans text-[10px] font-medium text-slate-400 tracking-wide uppercase flex items-center gap-1.5">
+                    <span>Built with ☕ by <a href="https://github.com/sambit-giri" target="_blank" class="text-slate-500 hover:text-slate-900 transition-colors">Sambit Giri</a></span>
+                    <span>&bull;</span>
+                    <span>MIT License</span>
+                </div>
+                <div class="flex gap-4 items-center">
+                    <a href="https://github.com/sambit-giri/mimirs-well" target="_blank" class="font-sans text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+                        GitHub
+                    </a>
                 </div>
             </footer>
 

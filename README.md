@@ -1,4 +1,8 @@
-# 🧠 Mímisbrunnr — Mimir's Well: The Intuition Lab
+<div align="center">
+<img src="docs/logo.png" alt="Mímisbrunnr Logo" width="160" />
+
+
+# Mímisbrunnr — Mimir's Well: The Intuition Lab
 **Building a "gut feeling" for abstract math and physics concepts through code.**
 
 > "What I cannot create, I do not understand." — Richard Feynman
@@ -87,6 +91,8 @@ jupyter notebook
 ---
 
 ## 📜 License
+
+This project is licensed under the MIT License. You are free to use, modify, and distribute this software, provided that you include the original copyright and license notice.
 
 ---
 
