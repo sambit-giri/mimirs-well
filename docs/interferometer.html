@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How an Interferometer Sees | Mimir's Well</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        body { background-color: #ffffff; color: #222222; }
+        .font-sans { font-family: 'Inter', -apple-system, sans-serif; }
+        .font-serif { font-family: 'Lora', Georgia, serif; }
+
+        .pwrap {
+            aspect-ratio: 1 / 1;
+            background: #ffffff;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            position: relative;
+        }
+        .viz-canvas { display: block; width: 100%; height: 100%; }
+        .clickable { cursor: crosshair; }
+        .busy { position: absolute; top: 6px; right: 8px; }
+
+        .seg { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 0.375rem; overflow: hidden; }
+        .seg button {
+            font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+            padding: 3px 9px; color: #475569; background: #fff; transition: background 0.15s;
+        }
+        .seg button + button { border-left: 1px solid #cbd5e1; }
+        .seg button:hover { background: #f1f5f9; }
+        .seg button.active { background: #2563eb; color: #fff; }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1em;
+        }
+        input[type=number] { -moz-appearance: textfield; }
+        .num {
+            font-family: 'Inter', sans-serif; font-size: 13px; width: 5.5rem;
+            border: 1px solid #cbd5e1; border-radius: 0.375rem; padding: 4px 6px; outline: none;
+        }
+        .num:focus { border-color: #3b82f6; }
+        .try-btn {
+            font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+            border: 1px solid #bfdbfe; color: #1d4ed8; background: #eff6ff;
+            border-radius: 0.375rem; padding: 3px 9px; transition: background 0.15s;
+        }
+        .try-btn:hover { background: #dbeafe; }
+        .cbar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; column-gap: 6px;
+            font-family: 'Inter', sans-serif; font-size: 10px; color: #64748b; font-variant-numeric: tabular-nums; }
+        .cbar canvas { width: 100%; height: 9px; border-radius: 2px; border: 1px solid #e2e8f0; display: block; }
+        .cbar .cb-mid { grid-column: 1 / -1; text-align: center; color: #94a3b8; margin-top: 1px; }
+        .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 9999px; margin-right: 4px; vertical-align: middle; }
+    </style>
+</head>
+<body class="min-h-screen antialiased selection:bg-blue-100 selection:text-blue-900 flex flex-col items-center py-8 md:py-10 px-4 md:px-8">
+
+<div class="w-full max-w-6xl flex-grow flex flex-col">
+
+    <!-- Header -->
+    <header class="mb-6 flex flex-col items-start">
+        <div class="flex items-center gap-3 mb-3">
+            <a href="index.html" class="group shrink-0 block" title="Back to Hub">
+                <img src="logo.png" alt="Mimir's Well Logo" class="w-10 h-10 rounded-lg object-cover border border-slate-200 grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300">
+            </a>
+            <h1 class="font-serif text-3xl md:text-4xl font-medium text-slate-900">How an Interferometer Sees</h1>
+        </div>
+        <div class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Radio Astronomy &bull; Fourier Optics &bull; Interferometry</div>
+        <p class="font-serif text-sm md:text-base text-slate-600 leading-snug">A radio interferometer never takes a picture. Each pair of stations measures a single <em>Fourier mode</em> of the sky &mdash; one ripple of a given wavelength and orientation. As the Earth turns, those pairs sweep out tracks in the Fourier (<em>uv</em>) plane, and the image we reconstruct is the true sky seen through that patchy sampling. Below, the station positions are the low-frequency component of the Square Kilometre Array (<strong>SKA-Low</strong>) station layouts. Choose a sky, cut the baselines, and watch what survives.</p>
+    </header>
+
+    <hr class="border-slate-100 mb-6">
+
+    <!-- Controls -->
+    <div class="flex flex-col gap-5 mb-5">
+
+        <!-- Row 1: telescope + observation -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
+
+            <div class="flex flex-col gap-1.5">
+                <label for="stage-select" class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest">1. SKA-Low Array Stage</label>
+                <select id="stage-select" class="font-sans bg-white border border-slate-300 text-slate-800 text-sm rounded-md block w-full p-2 cursor-pointer hover:bg-slate-50 outline-none">
+                    <option value="AA0.5">AA0.5 &mdash; 4 stations</option>
+                    <option value="AA1">AA1 &mdash; 16 stations</option>
+                    <option value="AA2">AA2 &mdash; 68 stations</option>
+                    <option value="AA*" selected>AA* &mdash; 307 stations</option>
+                    <option value="AA4">AA4 &mdash; 512 stations</option>
+                </select>
+                <p class="font-serif text-xs text-slate-500 mt-0.5" id="stage-note">N stations &rarr; N(N&minus;1)/2 baselines.</p>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <div class="flex justify-between items-center gap-2">
+                    <span class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest">2. Observing At</span>
+                    <div class="seg" id="spec-seg">
+                        <button data-v="freq" class="active">ν (MHz)</button><button data-v="z">z (21-cm)</button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="range" id="spec-slider" class="flex-1 accent-blue-600">
+                    <input type="number" id="spec-num" class="num" step="any">
+                </div>
+                <p class="font-serif text-xs text-slate-500 mt-0.5" id="spec-note"></p>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between">
+                    <span>3. Observation Length</span>
+                    <span id="label-dur" class="text-blue-600 font-bold">4 h</span>
+                </label>
+                <input type="range" id="slider-dur" min="0" max="12" step="0.25" value="4" class="w-full accent-blue-600">
+                <p class="font-serif text-xs text-slate-500 mt-0.5">0 h = a single snapshot. Longer = Earth-rotation synthesis.</p>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between">
+                    <span>4. Source Declination</span>
+                    <span id="label-dec" class="text-blue-600 font-bold">&minus;30&deg;</span>
+                </label>
+                <input type="range" id="slider-dec" min="-90" max="40" step="1" value="-30" class="w-full accent-blue-600">
+                <p class="font-serif text-xs text-slate-500 mt-0.5">SKA-Low sits at latitude &minus;26.8&deg;. Only samples above 15&deg; elevation count.</p>
+            </div>
+        </div>
+
+        <!-- Row 2: baseline cut + imaging -->
+        <div class="bg-slate-50 p-4 rounded-md border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-5">
+
+            <div class="flex flex-col gap-1.5">
+                <div class="flex justify-between items-center gap-2">
+                    <span class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest">5. Baseline Cut</span>
+                    <div class="seg" id="cut-seg">
+                        <button data-v="km">km</button><button data-v="lambda" class="active">λ</button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 font-sans text-xs text-slate-500">
+                    <span>min</span><input type="number" id="cut-min" class="num" min="0" step="any" placeholder="0">
+                    <span>max</span><input type="number" id="cut-max" class="num" min="0" step="any" placeholder="none">
+                </div>
+                <p class="font-serif text-xs text-slate-500 mt-0.5" id="cut-note"></p>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <div class="flex justify-between items-center gap-2">
+                    <label for="sky-select" class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest">6. Sky Model</label>
+                    <button id="btn-reshuffle" class="font-sans text-[11px] font-semibold text-blue-600 hover:text-blue-800" title="New random positions">↺ reshuffle</button>
+                </div>
+                <select id="sky-select" class="font-sans bg-white border border-slate-300 text-slate-800 text-sm rounded-md block w-full p-2 cursor-pointer hover:bg-slate-50 outline-none">
+                    <option value="gaussian">One Gaussian blob</option>
+                    <option value="ellipse">One ellipse</option>
+                    <option value="square">One square</option>
+                    <option value="circles" selected>Many circles</option>
+                    <option value="ring">A ring</option>
+                    <option value="double">Two point sources (resolution test)</option>
+                    <option value="points">Field of point sources</option>
+                    <option value="diffuse">Diffuse blob + compact sources</option>
+                </select>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest flex flex-col gap-1">
+                        <span class="flex justify-between"><span id="size-name">Size</span><span id="label-size" class="text-blue-600"></span></span>
+                        <input type="range" id="slider-size" min="0" max="1" step="0.005" value="0.62" class="w-full accent-blue-600">
+                    </label>
+                    <label class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest flex flex-col gap-1" id="rot-wrap">
+                        <span class="flex justify-between"><span>Angle</span><span id="label-rot" class="text-blue-600">30&deg;</span></span>
+                        <input type="range" id="slider-rot" min="0" max="180" step="1" value="30" class="w-full accent-blue-600">
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2.5">
+                <div class="flex items-center justify-between gap-2">
+                    <label for="fov-select" class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest">7. Field of View</label>
+                    <select id="fov-select" class="font-sans bg-white border border-slate-300 text-slate-800 text-sm rounded-md p-1.5 pr-7 cursor-pointer hover:bg-slate-50 outline-none">
+                        <option value="8">8&deg;</option>
+                        <option value="4" selected>4&deg;</option>
+                        <option value="2">2&deg;</option>
+                        <option value="1">1&deg;</option>
+                        <option value="0.5">30&prime;</option>
+                        <option value="0.16666667">10&prime;</option>
+                        <option value="0.05">3&prime;</option>
+                    </select>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                    <span class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest">Grid</span>
+                    <div class="seg" id="n-seg"><button data-v="256" class="active">256²</button><button data-v="512">512²</button></div>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                    <span class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest">Weighting</span>
+                    <div class="seg" id="w-seg"><button data-v="natural" class="active">Natural</button><button data-v="uniform">Uniform</button></div>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                    <span class="font-sans text-[10px] font-bold text-slate-500 uppercase tracking-widest">Colours</span>
+                    <div class="seg" id="cmap-seg"><button data-v="div" class="active">Diverging</button><button data-v="inferno">Inferno</button></div>
+                </div>
+                <p class="font-serif text-xs text-slate-500" id="fov-note"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panels -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-5 mb-5">
+
+        <figure class="flex flex-col gap-1.5">
+            <figcaption class="flex justify-between items-center gap-2 min-h-[24px]">
+                <span class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-500">① Station layout</span>
+                <div class="seg" id="zoom-seg"><button data-v="1" class="active">Fit</button><button data-v="5">×5</button><button data-v="25">×25</button></div>
+            </figcaption>
+            <div class="pwrap"><canvas id="cv-layout" class="viz-canvas"></canvas></div>
+            <p class="font-serif text-xs text-slate-500 leading-snug" id="note-layout"></p>
+        </figure>
+
+        <figure class="flex flex-col gap-1.5">
+            <figcaption class="flex justify-between items-center gap-2 min-h-[24px]">
+                <span class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-500">② uv coverage</span>
+                <div class="seg" id="uvext-seg"><button data-v="grid" class="active">Image grid</button><button data-v="full">Whole array</button></div>
+            </figcaption>
+            <div class="pwrap"><canvas id="cv-uv" class="viz-canvas clickable"></canvas></div>
+            <p class="font-serif text-xs text-slate-500 leading-snug">
+                <span class="legend-dot" style="background:#2563eb"></span>used
+                <span class="legend-dot ml-2" style="background:#cbd5e1"></span>removed by cut
+                <span class="legend-dot ml-2" style="background:#f59e0b"></span>beyond image grid.
+                <em>Click anywhere to see that baseline's fringe.</em>
+            </p>
+        </figure>
+
+        <figure class="flex flex-col gap-1.5">
+            <figcaption class="flex justify-between items-center gap-2 min-h-[24px]">
+                <span class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-500">③ True sky</span>
+            </figcaption>
+            <div class="pwrap"><canvas id="cv-sky" class="viz-canvas"></canvas></div>
+            <div class="cbar" id="cb-sky"></div>
+            <p class="font-serif text-xs text-slate-500 leading-snug">What is really out there, I(l, m). No noise, no primary beam.</p>
+        </figure>
+
+        <figure class="flex flex-col gap-1.5">
+            <figcaption class="flex justify-between items-center gap-2 min-h-[24px]">
+                <span class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-500">④ Sky in Fourier space</span>
+            </figcaption>
+            <div class="pwrap"><canvas id="cv-ft" class="viz-canvas clickable"></canvas></div>
+            <div class="cbar" id="cb-ft"></div>
+            <p class="font-serif text-xs text-slate-500 leading-snug">|V(u, v)| on a log scale. <strong>Colour</strong> = modes the array measures; <strong>grey</strong> = modes it never sees.</p>
+        </figure>
+
+        <figure class="flex flex-col gap-1.5">
+            <figcaption class="flex justify-between items-center gap-2 min-h-[24px]">
+                <span class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-500" id="p5-title">⑤ PSF (dirty beam)</span>
+                <div class="seg" id="p5-seg"><button data-v="psf" class="active">PSF</button><button data-v="fringe">Fringe</button></div>
+            </figcaption>
+            <div class="pwrap"><canvas id="cv-psf" class="viz-canvas"></canvas></div>
+            <div class="cbar" id="cb-psf"></div>
+            <p class="font-serif text-xs text-slate-500 leading-snug" id="note-psf"></p>
+        </figure>
+
+        <figure class="flex flex-col gap-1.5">
+            <figcaption class="flex justify-between items-center gap-2 min-h-[24px]">
+                <span class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-500">⑥ Dirty image</span>
+                <button id="btn-build" class="try-btn">▶ Build up, short → long</button>
+            </figcaption>
+            <div class="pwrap"><canvas id="cv-dirty" class="viz-canvas"></canvas></div>
+            <div class="cbar" id="cb-dirty"></div>
+            <p class="font-serif text-xs text-slate-500 leading-snug" id="note-dirty">True sky convolved with the PSF: what the telescope hands back.</p>
+        </figure>
+    </div>
+
+    <!-- Insights -->
+    <div id="insights-panel" class="font-serif text-sm text-slate-700 leading-relaxed border-l-2 border-blue-200 pl-3 py-1 mb-6 flex flex-col gap-1.5 min-h-[3rem]"></div>
+
+    <!-- Experiments -->
+    <section class="mb-6">
+        <h2 class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Guided Experiments</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="experiments"></div>
+    </section>
+
+    <!-- Background -->
+    <section class="mb-6 bg-slate-50 rounded-md border border-slate-200 p-4 md:p-5">
+        <h2 class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Background: From Baselines to Images</h2>
+        <div class="flex flex-col gap-5">
+
+            <div>
+                <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mb-1">
+                    <span class="font-sans text-sm font-bold text-blue-700">Visibilities</span>
+                    <span class="font-sans text-[10px] font-semibold text-slate-400 uppercase tracking-widest">van Cittert&ndash;Zernike theorem</span>
+                </div>
+                <p class="font-serif text-sm text-slate-600 leading-snug mb-1.5">
+                    Correlating the signals of two stations separated by the baseline vector <strong>b</strong> gives one complex number, the <em>visibility</em>. For a small field it is the Fourier transform of the sky brightness, evaluated at the baseline measured in wavelengths, (u, v) = <strong>b</strong><sub>⊥</sub>/λ:
+                </p>
+                <p class="font-sans text-sm font-medium text-slate-800 bg-white border border-slate-200 rounded px-3 py-1.5 inline-block tracking-wide">
+                    V(u, v) &nbsp;=&nbsp; ∬ I(l, m) &thinsp;e<sup>&minus;2πi(ul + vm)</sup> &thinsp;dl&thinsp;dm
+                </p>
+                <p class="font-serif text-xs text-slate-500 leading-snug mt-2">
+                    A baseline of length |u| wavelengths responds to sky ripples (<em>fringes</em>) of angular period 1/|u| radians, oriented along (u, v). Because the sky is real, V(&minus;u, &minus;v) = V*(u, v): every baseline gives two points in the uv plane for free.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <div>
+                <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mb-1">
+                    <span class="font-sans text-sm font-bold text-blue-700">Earth-Rotation Synthesis</span>
+                    <span class="font-sans text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Filling the uv plane</span>
+                </div>
+                <p class="font-serif text-sm text-slate-600 leading-snug">
+                    The baseline that matters is the one <em>projected</em> on the sky. As the Earth turns, the hour angle H changes and each baseline traces an ellipse in the uv plane. N stations give N(N&minus;1)/2 baselines, so AA4's 512 stations give 130,816 baselines, each tracing its own arc. The declination sets the shape of those ellipses: circles at the celestial pole, flat lines at the equator.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <div>
+                <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mb-1">
+                    <span class="font-sans text-sm font-bold text-blue-700">PSF &amp; Dirty Image</span>
+                    <span class="font-sans text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Convolution theorem</span>
+                </div>
+                <p class="font-serif text-sm text-slate-600 leading-snug mb-1.5">
+                    The array samples V only where it has baselines, described by a sampling function S(u, v). Multiplying in Fourier space is convolving in image space:
+                </p>
+                <p class="font-sans text-sm font-medium text-slate-800 bg-white border border-slate-200 rounded px-3 py-1.5 inline-block tracking-wide">
+                    I<sub>dirty</sub> &nbsp;=&nbsp; 𝓕<sup>&minus;1</sup>[ S · V ] &nbsp;=&nbsp; I &nbsp;∗&nbsp; B, &nbsp;&nbsp; B = 𝓕<sup>&minus;1</sup>[ S ]
+                </p>
+                <p class="font-serif text-xs text-slate-500 leading-snug mt-2">
+                    The <strong>longest</strong> baseline sets the resolution, θ ≈ 1/u<sub>max</sub> = λ/B<sub>max</sub>. The <strong>shortest</strong> sets the largest recoverable scale, ≈ 1/u<sub>min</sub>. Structures bigger than that are invisible. There is no zero-length baseline, so V(0, 0), the total flux, is never measured and the dirty image always averages to zero. <strong>Natural</strong> weighting trusts every sample equally, so the densely sampled core dominates: lower noise in real data, but a fatter beam. <strong>Uniform</strong> weighting gives every sampled cell equal say: a sharper beam, at the cost of higher sidelobes and (in real life) more noise.
+                </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <div>
+                <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mb-1">
+                    <span class="font-sans text-sm font-bold text-blue-700">What this page leaves out</span>
+                </div>
+                <p class="font-serif text-xs text-slate-500 leading-snug">
+                    Thermal noise, the station primary beam, the w-term (sky curvature), bandwidth and time smearing, calibration errors, the ionosphere, and deconvolution (e.g. CLEAN) are all ignored, so the geometry stands alone. Visibilities are gridded to the nearest cell of an FFT grid whose extent is set by the field of view: cell size Δu = 1/FoV, maximum |u| = N/(2·FoV). Station positions are the SKA-Low layouts bundled with <a href="https://github.com/sambit-giri/tools21cm" target="_blank" class="text-blue-600 hover:underline">tools21cm</a> (East-North-Up, relative to the array centre at 116.76&deg;E, 26.82&deg;S).
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="mt-auto pt-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-3">
+        <div class="font-sans text-[10px] font-medium text-slate-400 tracking-wide uppercase flex items-center gap-1.5">
+            <span>Built with ☕ by <a href="https://github.com/sambit-giri" target="_blank" class="text-slate-500 hover:text-slate-900 transition-colors">Sambit Giri</a></span>
+            <span>&bull;</span>
+            <span>MIT License</span>
+        </div>
+        <a href="index.html" class="font-sans text-xs font-medium text-slate-500 hover:text-blue-600 transition-colors">&larr; Back to Hub</a>
+    </footer>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// DATA: SKA-Low station positions, ENU metres (E, N, U triplets), from tools21cm
+// ─────────────────────────────────────────────
+const LAYOUTS = {"AA0.5":[-6962.8,-4318.2,-44.6,-3459.5,-3483.2,-36.8,-3421.3,-3367.5,-36.5,-1700.7,-6209.8,-35.0],"AA1":[-7027.7,-4363.8,-44.6,-7007.5,-4322.2,-44.7,-6962.8,-4318.2,-44.6,-7044.8,-4299.5,-44.8,-7001.2,-4264.9,-44.7,-7057.1,-4256.7,-44.9,-3459.5,-3483.2,-36.8,-3415.9,-3480.6,-36.5,-3373.8,-3443.0,-36.4,-3412.0,-3419.8,-36.5,-3455.4,-3405.9,-36.5,-3421.3,-3367.5,-36.5,-1599.0,-6225.9,-34.7,-1700.7,-6209.8,-35.0,-1647.1,-6179.7,-35.0,-1710.9,-6164.7,-35.0],"AA2":[6984.2,-4114.2,-7.9,6940.0,-4093.1,-8.1,7049.5,-4087.7,-7.6,6987.2,-4049.9,-7.8,17349.9,1366.0,-7.8,17256.9,1369.2,-7.9,17307.0,1381.1,-7.9,17259.0,1414.2,-8.3,4661.2,-1292.2,-6.9,4721.0,-1268.9,-7.1,4611.2,-1260.3,-6.5,4707.1,-1221.6,-6.9,6127.8,1584.7,-3.8,6170.1,1620.0,-3.7,6124.4,1640.4,-3.8,6215.7,1646.6,-3.4,-149.1,8154.9,-27.4,-191.5,8161.2,-27.7,-230.0,8179.7,-27.8,-142.6,8202.2,-27.6,-9106.7,14569.9,-28.8,-9060.6,14581.8,-28.9,-9131.6,14604.0,-29.0,-9084.5,14628.9,-28.7,-7789.3,26522.9,-84.2,-7729.8,26541.1,-84.2,-7826.4,26567.2,-84.7,-7779.6,26576.0,-84.6,-10521.5,36153.8,-146.4,-10444.5,36181.6,-146.1,-10508.4,36203.8,-146.6,-10455.4,36224.6,-146.4,-1286.4,4625.7,-27.8,-1203.0,4659.7,-27.7,-1308.8,4666.3,-27.9,-1259.5,4684.1,-27.8,-4482.4,4448.3,-33.6,-4451.9,4482.2,-33.5,-4542.2,4489.0,-33.7,-4494.7,4501.7,-33.5,-7027.7,-4363.8,-44.6,-7007.5,-4322.2,-44.7,-6962.8,-4318.2,-44.6,-7044.8,-4299.5,-44.8,-7001.2,-4264.9,-44.7,-7057.1,-4256.7,-44.9,-10901.2,-13873.1,-59.8,-10943.0,-13864.3,-60.1,-10901.6,-13827.3,-59.7,-10965.8,-13809.7,-60.3,-25603.5,-13277.3,-85.3,-25658.8,-13243.0,-85.4,-25604.4,-13232.7,-85.2,-25556.7,-13214.6,-85.0,-28259.6,-26087.0,-181.1,-28314.6,-26070.1,-181.4,-28215.1,-26058.8,-180.5,-28262.8,-26029.1,-180.8,-3459.5,-3483.2,-36.8,-3415.9,-3480.6,-36.5,-3373.8,-3443.0,-36.4,-3412.0,-3419.8,-36.5,-3455.4,-3405.9,-36.5,-3421.3,-3367.5,-36.5,-1599.0,-6225.9,-34.7,-1700.7,-6209.8,-35.0,-1647.1,-6179.7,-35.0,-1710.9,-6164.7,-35.0],"AA*":[124.0,-159.6,-18.0,-183.4,56.1,-19.8,126.1,-202.0,-18.0,-72.9,317.0,-20.5,-116.9,248.1,-20.7,277.9,-117.0,-17.7,192.0,274.6,-19.7,-48.8,264.3,-20.4,-264.4,222.3,-20.9,276.8,109.3,-18.7,-247.9,-42.1,-20.0,152.6,293.6,-20.2,-136.7,49.2,-19.6,61.7,299.0,-20.4,-206.1,-162.3,-20.0,12.0,-281.9,-18.4,-122.9,-312.5,-19.3,-250.2,166.0,-20.8,-315.8,-133.7,-20.5,178.5,-187.5,-18.0,256.1,166.8,-19.1,161.3,141.1,-19.1,243.2,-79.6,-17.9,-264.5,124.7,-20.9,202.5,164.0,-19.0,321.2,-12.3,-18.0,-229.2,-231.2,-20.1,281.5,-183.4,-17.4,-244.9,-191.7,-20.2,-309.8,-87.4,-20.5,-1.4,-105.3,-18.8,-45.8,-312.5,-18.9,193.2,-253.2,-17.9,269.8,223.7,-19.4,-318.6,-44.8,-20.2,-206.2,216.7,-20.7,29.8,356.4,-20.7,-150.6,274.8,-20.9,45.3,-82.2,-18.7,-246.6,-148.7,-20.3,269.5,-229.7,-17.5,-25.5,-262.2,-18.8,222.0,-296.2,-17.7,338.0,36.2,-18.2,250.7,-149.9,-17.7,197.6,232.9,-19.2,285.8,11.2,-18.2,-4.6,260.8,-20.1,233.3,258.0,-19.4,-54.5,7.7,-19.6,235.1,124.1,-18.6,-353.8,26.8,-21.1,476.0,-71.9,-17.4,-438.0,-136.2,-21.0,69.6,452.2,-21.2,99.3,-419.7,-17.6,-46.7,-405.1,-18.7,-213.0,5.0,-19.8,-391.8,-213.6,-20.6,-47.9,475.6,-21.4,-293.0,254.4,-21.0,366.6,-250.3,-17.2,238.8,-378.2,-17.4,473.2,17.0,-17.8,101.5,419.3,-20.1,168.5,-332.4,-17.9,-382.4,126.0,-21.5,81.0,101.2,-19.5,-396.2,170.0,-21.5,198.7,-362.2,-17.5,156.0,-385.0,-17.5,12.4,-480.0,-17.9,-197.8,409.4,-20.3,-354.2,229.4,-21.2,-115.4,-414.3,-19.1,2.9,426.3,-21.2,157.6,73.1,-19.0,369.9,149.9,-18.9,376.0,73.5,-18.3,264.5,400.9,-20.3,-241.8,-405.8,-20.0,-291.7,-268.5,-20.3,-374.8,70.5,-21.5,391.8,-100.3,-17.5,-42.6,-69.5,-19.0,460.5,73.6,-18.1,48.4,-381.4,-18.1,-337.6,-311.6,-20.7,-83.7,451.3,-21.1,-245.4,-334.5,-20.1,237.9,367.6,-20.1,10.4,-361.4,-18.3,432.3,-65.6,-17.5,-384.9,271.6,-21.2,-82.2,119.2,-19.3,37.1,-18.6,-19.0,285.7,-70.8,-17.8,-118.3,-468.5,-19.0,-83.9,-366.1,-19.0,-467.1,3.8,-21.6,95.9,-463.9,-17.4,-405.5,17.3,-21.5,105.4,-375.7,-17.9,171.8,479.5,-21.0,124.6,495.8,-21.3,167.2,17.0,-18.6,261.4,444.2,-20.4,-495.5,-88.4,-21.5,-415.0,-90.6,-21.0,-501.7,-143.3,-21.5,-533.1,-111.7,-21.8,363.9,-392.0,-17.2,194.8,-56.4,-18.3,286.2,-392.8,-17.2,358.6,-344.3,-17.2,275.9,-350.3,-17.3,88.8,-124.0,-18.3,-59.6,158.0,-19.7,125.3,162.9,-19.4,-94.4,184.1,-20.0,3.2,173.5,-19.9,29.3,-183.9,-18.4,-52.6,-121.4,-18.9,70.4,-47.6,-18.7,75.3,148.6,-19.7,112.5,-85.0,-18.4,68.9,227.7,-20.0,-67.0,-170.7,-19.2,202.8,70.4,-18.8,-87.0,-74.8,-18.8,-143.6,-119.7,-19.4,73.5,10.6,-19.1,-136.4,-11.7,-19.8,74.6,-187.7,-18.2,-133.7,-55.8,-19.6,-220.2,76.8,-19.9,-102.4,15.0,-19.7,213.5,29.3,-18.5,-210.8,-66.3,-20.0,67.6,53.4,-19.5,-69.5,-212.9,-19.1,-179.8,108.4,-19.5,165.0,-130.9,-18.1,-182.8,-28.2,-19.9,13.4,220.3,-20.1,1.5,5.5,-19.4,201.0,-107.9,-18.1,51.4,188.6,-20.0,-22.9,-158.0,-18.8,-120.0,93.6,-19.3,126.3,27.2,-18.9,226.9,-17.3,-18.3,-170.7,-87.5,-19.7,44.7,-133.7,-18.5,-103.2,-139.8,-19.2,-26.0,-26.2,-19.3,-31.6,199.3,-20.0,150.9,-42.2,-18.3,-145.6,-169.3,-19.6,-109.7,-192.4,-19.4,-86.8,-30.1,-19.5,-136.6,167.2,-19.6,-69.5,223.8,-20.2,-9.4,-219.1,-18.6,-169.9,16.0,-19.8,118.3,208.1,-19.4,127.4,113.6,-19.2,33.2,132.8,-19.7,-23.6,135.6,-19.8,161.4,-87.8,-18.3,194.2,113.9,-18.9,44.1,-223.7,-18.3,-198.9,-119.1,-20.0,112.8,-23.5,-18.5,221.1,-184.0,-17.8,227.0,-226.3,-17.8,-214.6,268.5,-20.9,100.5,-241.0,-18.0,9.0,-51.3,-18.9,-320.3,110.6,-21.2,90.6,-332.0,-18.1,-150.7,-246.1,-19.7,322.0,158.9,-19.1,-187.3,-218.4,-19.8,228.4,199.7,-19.0,-96.7,-273.9,-19.3,-262.1,-94.2,-20.1,57.2,-282.7,-18.0,-167.4,236.1,-20.9,111.9,66.7,-19.2,-331.2,63.2,-21.0,-188.1,-271.6,-19.8,-306.1,20.7,-20.2,-136.2,322.8,-20.6,-266.5,62.7,-20.2,-292.5,182.9,-21.2,107.7,253.1,-20.1,302.0,58.2,-18.3,99.3,-290.5,-18.0,-191.1,575.5,-20.2,-235.5,600.8,-20.5,6984.2,-4114.2,-7.9,6940.0,-4093.1,-8.1,7049.5,-4087.7,-7.6,6987.2,-4049.9,-7.8,17349.9,1366.0,-7.8,17256.9,1369.2,-7.9,17307.0,1381.1,-7.9,17259.0,1414.2,-8.3,28172.5,-7573.5,-86.7,28092.3,-7543.8,-86.4,28217.7,-7521.9,-86.9,28144.1,-7498.7,-86.5,42777.8,-14222.3,-179.3,42727.9,-14202.0,-179.0,42847.1,-14192.2,-179.7,42751.5,-14162.4,-179.0,-780.2,463.7,-23.6,-830.3,502.4,-24.1,-701.5,518.0,-23.6,-1298.4,-132.4,-24.9,-1253.9,-126.2,-24.9,-1347.4,-93.4,-25.1,-1408.9,-1215.0,-26.6,-1363.1,-1204.6,-26.3,-1358.2,-1157.4,-26.4,4661.2,-1292.2,-6.9,4721.0,-1268.9,-7.1,4611.2,-1260.3,-6.5,4707.1,-1221.6,-6.9,6127.8,1584.7,-3.8,6170.1,1620.0,-3.7,6124.4,1640.4,-3.8,6215.7,1646.6,-3.4,-497.6,-535.2,-21.8,-420.2,-546.1,-21.3,-149.1,8154.9,-27.4,-191.5,8161.2,-27.7,-230.0,8179.7,-27.8,-142.6,8202.2,-27.6,-9106.7,14569.9,-28.8,-9060.6,14581.8,-28.9,-9131.6,14604.0,-29.0,-9084.5,14628.9,-28.7,-7789.3,26522.9,-84.2,-7729.8,26541.1,-84.2,-7826.4,26567.2,-84.7,-7779.6,26576.0,-84.6,-10521.5,36153.8,-146.4,-10444.5,36181.6,-146.1,-10508.4,36203.8,-146.6,-10455.4,36224.6,-146.4,-27.7,-966.8,-21.6,-117.1,-969.7,-22.0,-76.6,-948.5,-21.8,758.1,-1117.7,-19.9,710.2,-1121.2,-20.0,663.8,-1095.0,-20.2,1689.9,-646.3,-16.2,1657.1,-610.1,-16.1,1713.5,-598.3,-15.9,-1286.4,4625.7,-27.8,-1203.0,4659.7,-27.7,-1308.8,4666.3,-27.9,-1259.5,4684.1,-27.8,-4482.4,4448.3,-33.6,-4451.9,4482.2,-33.5,-4542.2,4489.0,-33.7,-4494.7,4501.7,-33.5,667.7,-173.1,-17.0,629.6,-139.5,-17.0,-7027.7,-4363.8,-44.6,-7007.5,-4322.2,-44.7,-6962.8,-4318.2,-44.6,-7044.8,-4299.5,-44.8,-7001.2,-4264.9,-44.7,-7057.1,-4256.7,-44.9,-10901.2,-13873.1,-59.8,-10943.0,-13864.3,-60.1,-10901.6,-13827.3,-59.7,-10965.8,-13809.7,-60.3,-25603.5,-13277.3,-85.3,-25658.8,-13243.0,-85.4,-25604.4,-13232.7,-85.2,-25556.7,-13214.6,-85.0,-28259.6,-26087.0,-181.1,-28314.6,-26070.1,-181.4,-28215.1,-26058.8,-180.5,-28262.8,-26029.1,-180.8,918.0,387.9,-18.5,832.6,324.0,-18.6,786.1,360.1,-18.9,627.5,1102.2,-20.9,588.7,1151.6,-20.8,-293.5,1716.0,-22.9,-353.3,1724.8,-22.9,-259.4,1747.1,-22.7,-3459.5,-3483.2,-36.8,-3415.9,-3480.6,-36.5,-3373.8,-3443.0,-36.4,-3412.0,-3419.8,-36.5,-3455.4,-3405.9,-36.5,-3421.3,-3367.5,-36.5,-1599.0,-6225.9,-34.7,-1700.7,-6209.8,-35.0,-1647.1,-6179.7,-35.0,-1710.9,-6164.7,-35.0],"AA4":[124.0,-159.6,-18.0,-183.4,56.1,-19.8,126.1,-202.0,-18.0,-72.9,317.0,-20.5,-116.9,248.1,-20.7,277.9,-117.0,-17.7,192.0,274.6,-19.7,-48.8,264.3,-20.4,-264.4,222.3,-20.9,276.8,109.3,-18.7,-247.9,-42.1,-20.0,152.6,293.6,-20.2,-136.7,49.2,-19.6,61.7,299.0,-20.4,-206.1,-162.3,-20.0,12.0,-281.9,-18.4,-122.9,-312.5,-19.3,-250.2,166.0,-20.8,-315.8,-133.7,-20.5,-185.6,151.9,-19.5,178.5,-187.5,-18.0,-23.4,343.0,-20.5,256.1,166.8,-19.1,161.3,141.1,-19.1,243.2,-79.6,-17.9,-264.5,124.7,-20.9,14.7,300.7,-20.4,202.5,164.0,-19.0,321.2,-12.3,-18.0,-229.2,-231.2,-20.1,281.5,-183.4,-17.4,-276.2,-226.5,-20.4,-244.9,-191.7,-20.2,-309.8,-87.4,-20.5,-1.4,-105.3,-18.8,-45.8,-312.5,-18.9,255.2,69.3,-18.4,193.2,-253.2,-17.9,269.8,223.7,-19.4,105.4,313.8,-20.4,-318.6,-44.8,-20.2,348.9,-77.8,-17.6,-206.2,216.7,-20.7,29.8,356.4,-20.7,-150.6,274.8,-20.9,45.3,-82.2,-18.7,-246.6,-148.7,-20.3,269.5,-229.7,-17.5,-25.5,-262.2,-18.8,222.0,-296.2,-17.7,338.0,36.2,-18.2,250.7,-149.9,-17.7,197.6,232.9,-19.2,285.8,11.2,-18.2,-4.6,260.8,-20.1,233.3,258.0,-19.4,-54.5,7.7,-19.6,235.1,124.1,-18.6,-353.8,26.8,-21.1,-365.5,-98.7,-20.7,476.0,-71.9,-17.4,-438.0,-136.2,-21.0,69.6,452.2,-21.2,99.3,-419.7,-17.6,-192.2,-395.6,-19.7,-46.7,-405.1,-18.7,444.5,-163.6,-17.2,-213.0,5.0,-19.8,-391.8,-213.6,-20.6,-47.9,475.6,-21.4,-293.0,254.4,-21.0,366.6,-250.3,-17.2,238.8,-378.2,-17.4,473.2,17.0,-17.8,101.5,419.3,-20.1,168.5,-332.4,-17.9,-382.4,126.0,-21.5,378.2,-151.8,-17.3,81.0,101.2,-19.5,-396.2,170.0,-21.5,198.7,-362.2,-17.5,156.0,-385.0,-17.5,12.4,-480.0,-17.9,320.0,-250.9,-17.3,-197.8,409.4,-20.3,-354.2,229.4,-21.2,-115.4,-414.3,-19.1,-369.1,-19.6,-20.9,2.9,426.3,-21.2,157.6,73.1,-19.0,369.9,149.9,-18.9,376.0,73.5,-18.3,-348.6,162.1,-21.4,264.5,400.9,-20.3,-241.8,-405.8,-20.0,-291.7,-268.5,-20.3,-374.8,70.5,-21.5,391.8,-100.3,-17.5,430.4,2.4,-17.9,408.5,167.8,-18.8,-42.6,-69.5,-19.0,460.5,73.6,-18.1,48.4,-381.4,-18.1,-337.6,-311.6,-20.7,-83.7,451.3,-21.1,-245.4,-334.5,-20.1,237.9,367.6,-20.1,297.0,302.3,-19.7,10.4,-361.4,-18.3,432.3,-65.6,-17.5,-384.9,271.6,-21.2,-82.2,119.2,-19.3,37.1,-18.6,-19.0,285.7,-70.8,-17.8,-118.3,-468.5,-19.0,-83.9,-366.1,-19.0,-467.1,3.8,-21.6,95.9,-463.9,-17.4,-405.5,17.3,-21.5,105.4,-375.7,-17.9,171.8,479.5,-21.0,124.6,495.8,-21.3,177.8,419.0,-20.7,167.2,17.0,-18.6,138.0,395.9,-20.1,138.9,449.8,-21.0,261.4,444.2,-20.4,-495.5,-88.4,-21.5,-415.0,-90.6,-21.0,-482.0,-36.5,-21.5,-501.7,-143.3,-21.5,-533.1,-111.7,-21.8,-447.1,-62.4,-21.3,363.9,-392.0,-17.2,194.8,-56.4,-18.3,321.7,-368.4,-17.2,342.3,-301.3,-17.3,286.2,-392.8,-17.2,358.6,-344.3,-17.2,275.9,-350.3,-17.3,88.8,-124.0,-18.3,-59.6,158.0,-19.7,125.3,162.9,-19.4,-94.4,184.1,-20.0,3.2,173.5,-19.9,29.3,-183.9,-18.4,-52.6,-121.4,-18.9,70.4,-47.6,-18.7,75.3,148.6,-19.7,112.5,-85.0,-18.4,68.9,227.7,-20.0,-67.0,-170.7,-19.2,202.8,70.4,-18.8,-87.0,-74.8,-18.8,-143.6,-119.7,-19.4,73.5,10.6,-19.1,-136.4,-11.7,-19.8,74.6,-187.7,-18.2,-133.7,-55.8,-19.6,-220.2,76.8,-19.9,-102.4,15.0,-19.7,213.5,29.3,-18.5,-210.8,-66.3,-20.0,67.6,53.4,-19.5,-69.5,-212.9,-19.1,-179.8,108.4,-19.5,165.0,-130.9,-18.1,-182.8,-28.2,-19.9,13.4,220.3,-20.1,1.5,5.5,-19.4,201.0,-107.9,-18.1,51.4,188.6,-20.0,-22.9,-158.0,-18.8,-120.0,93.6,-19.3,126.3,27.2,-18.9,226.9,-17.3,-18.3,-170.7,-87.5,-19.7,44.7,-133.7,-18.5,-103.2,-139.8,-19.2,-26.0,-26.2,-19.3,-31.6,199.3,-20.0,150.9,-42.2,-18.3,-145.6,-169.3,-19.6,-109.7,-192.4,-19.4,-86.8,-30.1,-19.5,-136.6,167.2,-19.6,-69.5,223.8,-20.2,-9.4,-219.1,-18.6,-169.9,16.0,-19.8,118.3,208.1,-19.4,127.4,113.6,-19.2,33.2,132.8,-19.7,-23.6,135.6,-19.8,161.4,-87.8,-18.3,194.2,113.9,-18.9,44.1,-223.7,-18.3,-198.9,-119.1,-20.0,112.8,-23.5,-18.5,221.1,-184.0,-17.8,227.0,-226.3,-17.8,-214.6,268.5,-20.9,100.5,-241.0,-18.0,9.0,-51.3,-18.9,-320.3,110.6,-21.2,90.6,-332.0,-18.1,-150.7,-246.1,-19.7,322.0,158.9,-19.1,-187.3,-218.4,-19.8,228.4,199.7,-19.0,-96.7,-273.9,-19.3,-262.1,-94.2,-20.1,57.2,-282.7,-18.0,-167.4,236.1,-20.9,111.9,66.7,-19.2,-331.2,63.2,-21.0,-188.1,-271.6,-19.8,-306.1,20.7,-20.2,-136.2,322.8,-20.6,318.9,-143.3,-17.5,-266.5,62.7,-20.2,-292.5,182.9,-21.2,107.7,253.1,-20.1,302.0,58.2,-18.3,99.3,-290.5,-18.0,-191.1,575.5,-20.2,-235.5,600.8,-20.5,-194.2,627.9,-20.5,-263.0,632.7,-20.9,-165.1,661.1,-20.8,-231.2,695.5,-21.3,6984.2,-4114.2,-7.9,6940.0,-4093.1,-8.1,7049.5,-4087.7,-7.6,6987.2,-4049.9,-7.8,6953.7,-4011.1,-7.9,7036.5,-4005.8,-7.5,9911.2,-3785.5,2.3,9849.2,-3775.3,2.3,9875.4,-3729.3,2.8,9951.9,-3731.2,3.0,9851.8,-3692.7,3.0,9917.1,-3690.9,3.4,9472.8,-9704.4,-24.4,9423.8,-9668.4,-24.3,9359.8,-9661.2,-24.3,9463.9,-9639.4,-24.2,9419.9,-9619.3,-24.1,9373.9,-9618.3,-24.1,17349.9,1366.0,-7.8,17256.9,1369.2,-7.9,17307.0,1381.1,-7.9,17259.0,1414.2,-8.3,17334.0,1419.1,-8.0,17300.0,1444.2,-8.0,22752.9,4269.3,-20.1,22690.9,4314.5,-20.1,22732.8,4318.5,-20.1,22798.9,4335.3,-20.6,22718.0,4376.4,-20.4,22785.5,4375.1,-20.6,28172.5,-7573.5,-86.7,28092.3,-7543.8,-86.4,28217.7,-7521.9,-86.9,28144.1,-7498.7,-86.5,28188.0,-7492.0,-86.7,28094.6,-7491.3,-86.3,42777.8,-14222.3,-179.3,42727.9,-14202.0,-179.0,42847.1,-14192.2,-179.7,42751.5,-14162.4,-179.0,42795.6,-14150.4,-179.3,42752.7,-14120.5,-178.9,-780.2,463.7,-23.6,-830.3,502.4,-24.1,-701.5,518.0,-23.6,-768.4,519.3,-24.0,-818.2,554.3,-24.1,-736.7,559.7,-23.9,-1298.4,-132.4,-24.9,-1253.9,-126.2,-24.9,-1347.4,-93.4,-25.1,-1262.7,-78.2,-24.9,-1305.8,-72.7,-25.1,-1293.7,-32.4,-25.1,-1408.9,-1215.0,-26.6,-1363.1,-1204.6,-26.3,-1358.2,-1157.4,-26.4,-1312.7,-1148.6,-26.4,-1423.9,-1137.2,-25.8,-1387.3,-1090.7,-26.1,-568.1,-2138.2,-25.7,-504.2,-2102.3,-25.6,-571.8,-2095.0,-25.9,-620.2,-2079.9,-26.2,-531.7,-2053.3,-25.6,-565.0,-2014.4,-25.5,683.2,-2756.3,-23.2,729.2,-2739.4,-22.9,691.7,-2707.6,-23.0,761.3,-2697.2,-22.7,646.2,-2685.8,-23.1,734.4,-2660.2,-22.8,2641.4,-2647.6,-10.9,2677.3,-2617.6,-11.0,2614.3,-2604.6,-10.8,2722.4,-2624.7,-11.3,2608.6,-2557.8,-10.9,2657.5,-2564.3,-10.5,4661.2,-1292.2,-6.9,4721.0,-1268.9,-7.1,4611.2,-1260.3,-6.5,4707.1,-1221.6,-6.9,4661.7,-1216.6,-6.7,4606.2,-1208.6,-6.4,6127.8,1584.7,-3.8,6170.1,1620.0,-3.7,6124.4,1640.4,-3.8,6215.7,1646.6,-3.4,6174.3,1571.4,-3.6,6217.9,1596.3,-3.4,-497.6,-535.2,-21.8,-420.2,-546.1,-21.3,-378.3,-533.1,-20.9,-467.6,-492.3,-21.7,-402.4,-497.8,-21.2,-489.9,-429.9,-21.6,-149.1,8154.9,-27.4,-191.5,8161.2,-27.7,-230.0,8179.7,-27.8,-142.6,8202.2,-27.6,-183.4,8217.3,-27.9,-215.4,8249.2,-27.9,4054.6,11379.5,-26.2,4011.7,11396.0,-26.4,4061.2,11424.6,-26.3,4021.0,11439.1,-26.4,4102.9,11445.2,-26.3,4049.7,11491.8,-26.4,-3964.6,12373.4,-31.2,-3874.1,12381.6,-31.1,-3925.8,12403.9,-31.2,-3880.8,12441.5,-31.3,-3984.4,12445.5,-30.9,-3923.1,12450.5,-31.3,-9106.7,14569.9,-28.8,-9060.6,14581.8,-28.9,-9131.6,14604.0,-29.0,-9084.5,14628.9,-28.7,-9128.5,14655.0,-29.0,-9081.4,14670.8,-29.0,-13803.3,18054.1,-69.3,-13764.2,18073.9,-69.1,-13797.2,18110.0,-69.4,-13841.2,18113.1,-69.4,-13770.0,18150.0,-69.3,-13834.0,18162.2,-69.6,-7789.3,26522.9,-84.2,-7729.8,26541.1,-84.2,-7826.4,26567.2,-84.7,-7779.6,26576.0,-84.6,-7741.9,26595.1,-84.7,-7823.5,26619.1,-85.1,-10521.5,36153.8,-146.4,-10444.5,36181.6,-146.1,-10508.4,36203.8,-146.6,-10455.4,36224.6,-146.4,-10549.4,36230.9,-147.0,-10505.3,36249.7,-146.9,-27.7,-966.8,-21.6,-117.1,-969.7,-22.0,-76.6,-948.5,-21.8,-116.5,-925.8,-21.7,-28.4,-908.9,-21.2,-80.5,-894.9,-21.3,758.1,-1117.7,-19.9,710.2,-1121.2,-20.0,663.8,-1095.0,-20.2,731.2,-1080.7,-19.9,674.0,-1045.9,-19.9,735.2,-1022.8,-19.7,1689.9,-646.3,-16.2,1657.1,-610.1,-16.1,1713.5,-598.3,-15.9,1636.4,-566.2,-15.9,1711.6,-553.4,-15.8,1667.0,-518.3,-15.7,2044.8,476.3,-13.5,2093.4,486.9,-13.2,2019.5,515.7,-13.5,2065.3,531.7,-13.2,2123.5,556.4,-12.7,2059.0,573.8,-13.0,1971.9,1978.9,-16.8,2038.8,1981.4,-16.6,1996.4,2020.6,-16.8,1952.3,2023.8,-16.9,2041.9,2028.7,-16.7,2004.8,2073.3,-16.9,943.8,3525.1,-20.5,900.7,3545.0,-20.5,991.3,3536.6,-20.3,1015.4,3573.7,-20.3,972.7,3589.8,-20.4,932.1,3604.2,-20.5,-1286.4,4625.7,-27.8,-1203.0,4659.7,-27.7,-1308.8,4666.3,-27.9,-1259.5,4684.1,-27.8,-1298.0,4708.2,-27.8,-1225.8,4723.0,-27.5,-4482.4,4448.3,-33.6,-4451.9,4482.2,-33.5,-4542.2,4489.0,-33.7,-4494.7,4501.7,-33.5,-4467.7,4542.9,-33.6,-4529.8,4546.7,-33.6,667.7,-173.1,-17.0,629.6,-139.5,-17.0,586.8,-131.6,-17.0,671.2,-129.0,-17.0,642.1,-80.4,-17.1,685.8,-71.0,-17.1,-7027.7,-4363.8,-44.6,-7007.5,-4322.2,-44.7,-6962.8,-4318.2,-44.6,-7044.8,-4299.5,-44.8,-7001.2,-4264.9,-44.7,-7057.1,-4256.7,-44.9,-9747.3,-8324.2,-52.5,-9704.3,-8321.3,-52.3,-9682.2,-8282.3,-52.3,-9815.2,-8284.9,-52.7,-9757.2,-8270.0,-52.6,-9714.1,-8233.8,-52.6,-14169.7,-4533.4,-61.6,-14229.0,-4516.0,-61.8,-14272.3,-4499.5,-61.5,-14198.2,-4486.8,-61.6,-14225.5,-4446.7,-61.4,-14181.6,-4431.5,-61.3,-10901.2,-13873.1,-59.8,-10943.0,-13864.3,-60.1,-10901.6,-13827.3,-59.7,-10965.8,-13809.7,-60.3,-10863.0,-13792.7,-59.6,-10928.3,-13788.7,-60.0,-6651.4,-20784.1,-59.2,-6682.2,-20750.3,-59.3,-6629.8,-20735.1,-58.8,-6588.1,-20721.6,-58.4,-6689.1,-20705.6,-59.1,-6632.4,-20667.1,-58.6,-25603.5,-13277.3,-85.3,-25658.8,-13243.0,-85.4,-25604.4,-13232.7,-85.2,-25556.7,-13214.6,-85.0,-25668.0,-13200.3,-85.4,-25725.8,-13224.6,-85.7,-28259.6,-26087.0,-181.1,-28314.6,-26070.1,-181.4,-28215.1,-26058.8,-180.5,-28262.8,-26029.1,-180.8,-28330.1,-26030.0,-181.3,-28286.6,-25994.3,-180.9,918.0,387.9,-18.5,832.6,324.0,-18.6,786.1,360.1,-18.9,744.0,463.7,-19.2,876.0,430.8,-18.8,861.3,483.3,-18.9,627.5,1102.2,-20.9,588.7,1151.6,-20.8,526.9,1160.9,-21.1,643.9,1167.2,-20.6,548.6,1201.3,-21.1,599.9,1213.0,-20.7,-293.5,1716.0,-22.9,-353.3,1724.8,-22.9,-259.4,1747.1,-22.7,-313.8,1769.8,-22.6,-291.1,1807.0,-22.6,-355.2,1808.8,-22.7,-1524.0,1454.1,-26.1,-1532.3,1508.3,-26.1,-1460.4,1531.6,-25.8,-1577.0,1535.9,-26.2,-1505.2,1543.2,-26.1,-1553.0,1571.8,-26.1,-2736.8,683.7,-29.9,-2677.0,682.7,-29.6,-2706.8,714.0,-29.7,-2657.9,747.2,-29.6,-2755.1,750.9,-29.9,-2701.9,771.2,-29.7,-3561.4,-1005.1,-31.6,-3615.1,-971.3,-32.2,-3520.7,-963.9,-31.5,-3561.1,-937.6,-31.8,-3533.3,-903.1,-31.8,-3608.2,-896.2,-32.2,-3459.5,-3483.2,-36.8,-3415.9,-3480.6,-36.5,-3373.8,-3443.0,-36.4,-3412.0,-3419.8,-36.5,-3455.4,-3405.9,-36.5,-3421.3,-3367.5,-36.5,-1599.0,-6225.9,-34.7,-1700.7,-6209.8,-35.0,-1647.1,-6179.7,-35.0,-1710.9,-6164.7,-35.0,-1588.9,-6168.8,-34.8,-1685.1,-6127.9,-34.7]};
+
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+const DEG = Math.PI / 180;
+const C_LIGHT = 299792458;          // m/s
+const NU21 = 1420.405751;           // MHz
+const LAT = -26.824722 * DEG;       // SKA-Low array centre
+const STATION_R = 19;               // m, station radius (38 m diameter)
+const EL_MIN = 15 * DEG;            // elevation limit
+const NU_MIN = 50, NU_MAX = 350;    // MHz, SKA-Low band
+const Z_MIN = NU21 / NU_MAX - 1, Z_MAX = NU21 / NU_MIN - 1;
+const UV_RES = 300;                 // uv display histogram resolution
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+const state = {
+    stage: 'AA*',
+    specUnit: 'freq', nu: 150,
+    durH: 4, decDeg: -30,
+    cutUnit: 'lambda', cutMin: 0, cutMax: Infinity,   // in cutUnit (km or λ)
+    sky: 'circles', sizeT: 0.62, rotDeg: 30, seed: 1,
+    fovDeg: 4, N: 256, weighting: 'natural', cmap: 'div',
+    zoom: 1, uvExtent: 'grid', p5: 'psf', fringe: null,
+};
+
+let R = null;            // latest computed results
+let animId = null;       // build-up animation handle
+
+const $ = id => document.getElementById(id);
+const lambdaM = () => C_LIGHT / (state.nu * 1e6);
+const fovRad = () => state.fovDeg * DEG;
+
+// ─────────────────────────────────────────────
+// FORMATTING
+// ─────────────────────────────────────────────
+function fmtAng(rad) {
+    const d = Math.abs(rad) / DEG;
+    if (d >= 1) return `${d < 10 ? d.toFixed(1) : d.toFixed(0)}°`;
+    const am = d * 60;
+    if (am >= 1) return `${am < 10 ? am.toFixed(1) : am.toFixed(0)}′`;
+    const as = am * 60;
+    return `${as < 10 ? as.toFixed(1) : as.toFixed(0)}″`;
+}
+function fmtLam(x) {
+    if (!isFinite(x)) return '∞';
+    if (x >= 1e4) return `${(x / 1e3).toFixed(0)} kλ`;
+    if (x >= 1e3) return `${(x / 1e3).toFixed(1)} kλ`;
+    return `${x.toFixed(x < 10 ? 1 : 0)} λ`;
+}
+function fmtKm(m) {
+    if (!isFinite(m)) return '∞';
+    if (m < 1000) return `${m.toFixed(0)} m`;
+    return `${(m / 1000).toFixed(m < 1e4 ? 2 : 1)} km`;
+}
+const fmtInt = n => n.toLocaleString('en-US');
+const niceNum = x => {
+    const p = Math.pow(10, Math.floor(Math.log10(x)));
+    const f = x / p;
+    return (f >= 5 ? 5 : f >= 2 ? 2 : 1) * p;
+};
+
+// ─────────────────────────────────────────────
+// BASELINES (cached per stage)
+// ─────────────────────────────────────────────
+const blCache = {};
+function getBaselines(stage) {
+    if (blCache[stage]) return blCache[stage];
+    const a = LAYOUTS[stage];
+    const n = a.length / 3;
+    const nb = n * (n - 1) / 2;
+    const X = new Float64Array(nb), Y = new Float64Array(nb), Z = new Float64Array(nb);
+    const I = new Uint16Array(nb), J = new Uint16Array(nb);
+    const sl = Math.sin(LAT), cl = Math.cos(LAT);
+    let k = 0, bmax = 0;
+    for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+            const dE = a[3 * j] - a[3 * i], dN = a[3 * j + 1] - a[3 * i + 1], dU = a[3 * j + 2] - a[3 * i + 2];
+            // ENU -> equatorial (X: towards H=0 on the equator, Y: east, Z: north celestial pole)
+            X[k] = -sl * dN + cl * dU;
+            Y[k] = dE;
+            Z[k] = cl * dN + sl * dU;
+            I[k] = i; J[k] = j;
+            bmax = Math.max(bmax, Math.hypot(dE, dN, dU));
+            k++;
+        }
+    }
+    return (blCache[stage] = { n, nb, X, Y, Z, I, J, bmax });
+}
+
+// Baseline cut in wavelengths for the current state
+function cutLambda() {
+    const toLam = state.cutUnit === 'km' ? 1000 / lambdaM() : 1;
+    return [state.cutMin * toLam, state.cutMax * toLam];
+}
+
+// ─────────────────────────────────────────────
+// UV COVERAGE + GRIDDING
+// ─────────────────────────────────────────────
+function computeCoverage() {
+    const B = getBaselines(state.stage);
+    const N = state.N, h = N / 2;
+    const lam = lambdaM(), invLam = 1 / lam;
+    const du = 1 / fovRad();           // grid cell, λ
+    const uNyq = h * du;               // grid half-extent, λ
+    const [cutLo, cutHi] = cutLambda();
+    const ext = state.uvExtent === 'grid' ? uNyq : B.bmax * invLam * 1.04;
+
+    const dec = state.decDeg * DEG, sd = Math.sin(dec), cd = Math.cos(dec);
+    const nT = state.durH === 0 ? 1 : Math.max(2, Math.min(121, Math.round(state.durH * 10) + 1));
+    const counts = new Float64Array(N * N);
+    const hIn = new Uint8Array(UV_RES * UV_RES), hCut = new Uint8Array(UV_RES * UV_RES), hOff = new Uint8Array(UV_RES * UV_RES);
+    const used = new Uint8Array(B.nb);
+    const hs = UV_RES / (2 * ext);
+    let nIn = 0, nCut = 0, nOff = 0, nSteps = 0, rMin = Infinity, rMax = 0;
+    const sinElMin = Math.sin(EL_MIN);
+
+    for (let t = 0; t < nT; t++) {
+        const Hh = nT === 1 ? 0 : -state.durH / 2 + state.durH * t / (nT - 1);
+        const H = Hh * 15 * DEG;
+        const sH = Math.sin(H), cH = Math.cos(H);
+        const sinEl = Math.sin(LAT) * sd + Math.cos(LAT) * cd * cH;
+        if (sinEl < sinElMin) continue;
+        nSteps++;
+        const vx = -sd * cH, vy = sd * sH;
+        for (let k = 0; k < B.nb; k++) {
+            const x = B.X[k] * invLam, y = B.Y[k] * invLam, z = B.Z[k] * invLam;
+            const u = sH * x + cH * y;
+            const v = vx * x + vy * y + cd * z;
+            const r = Math.sqrt(u * u + v * v);
+            // display histogram (both u,v and -u,-v)
+            const px = Math.floor((u + ext) * hs), py = Math.floor((ext - v) * hs);
+            const qx = UV_RES - 1 - px, qy = UV_RES - 1 - py;
+            const onD = px >= 0 && px < UV_RES && py >= 0 && py < UV_RES;
+            if (r < cutLo || r > cutHi) {
+                nCut++;
+                if (onD) { hCut[py * UV_RES + px] = 1; hCut[qy * UV_RES + qx] = 1; }
+                continue;
+            }
+            const iu = Math.round(u / du), iv = Math.round(v / du);
+            if (iu >= h || iu <= -h || iv >= h || iv <= -h) {
+                nOff++;
+                if (onD) { hOff[py * UV_RES + px] = 1; hOff[qy * UV_RES + qx] = 1; }
+                continue;
+            }
+            counts[((iv + N) % N) * N + ((iu + N) % N)] += 1;
+            counts[((N - iv) % N) * N + ((N - iu) % N)] += 1;
+            if (onD) { hIn[py * UV_RES + px] = 1; hIn[qy * UV_RES + qx] = 1; }
+            used[k] = 1;
+            nIn++;
+            if (r < rMin) rMin = r;
+            if (r > rMax) rMax = r;
+        }
+    }
+
+    const stUsed = new Uint8Array(B.n);
+    for (let k = 0; k < B.nb; k++) if (used[k]) { stUsed[B.I[k]] = 1; stUsed[B.J[k]] = 1; }
+
+    return { B, counts, hIn, hCut, hOff, ext, uNyq, du, nIn, nCut, nOff, nT, nSteps, rMin, rMax, stUsed, cutLo, cutHi };
+}
+
+// ─────────────────────────────────────────────
+// FFT (radix-2, in place, unnormalised)
+// ─────────────────────────────────────────────
+const fftPlans = {};
+function fftPlan(n) {
+    if (fftPlans[n]) return fftPlans[n];
+    const bits = Math.log2(n), rev = new Uint32Array(n);
+    for (let i = 0; i < n; i++) {
+        let r = 0, x = i;
+        for (let b = 0; b < bits; b++) { r = (r << 1) | (x & 1); x >>= 1; }
+        rev[i] = r;
+    }
+    const cs = new Float64Array(n / 2), sn = new Float64Array(n / 2);
+    for (let i = 0; i < n / 2; i++) { cs[i] = Math.cos(2 * Math.PI * i / n); sn[i] = Math.sin(2 * Math.PI * i / n); }
+    return (fftPlans[n] = { rev, cs, sn, br: new Float64Array(n), bi: new Float64Array(n) });
+}
+function fft1(re, im, off, stride, n, sign, P) {
+    const { rev, cs, sn, br, bi } = P;
+    for (let i = 0; i < n; i++) { const j = off + rev[i] * stride; br[i] = re[j]; bi[i] = im[j]; }
+    for (let size = 2; size <= n; size <<= 1) {
+        const half = size >> 1, step = n / size;
+        for (let i = 0; i < n; i += size) {
+            for (let k = 0; k < half; k++) {
+                const wr = cs[k * step], wi = sign * sn[k * step];
+                const a = i + k, b = a + half;
+                const tr = br[b] * wr - bi[b] * wi, ti = br[b] * wi + bi[b] * wr;
+                br[b] = br[a] - tr; bi[b] = bi[a] - ti;
+                br[a] += tr; bi[a] += ti;
+            }
+        }
+    }
+    for (let i = 0; i < n; i++) { const j = off + i * stride; re[j] = br[i]; im[j] = bi[i]; }
+}
+function fft2(re, im, n, inverse) {
+    const P = fftPlan(n), sign = inverse ? 1 : -1;
+    for (let r = 0; r < n; r++) fft1(re, im, r * n, 1, n, sign, P);
+    for (let c = 0; c < n; c++) fft1(re, im, c, n, n, sign, P);
+}
+// Swap quadrants: centred <-> FFT order (self-inverse for even n)
+function shift(a, n) {
+    const out = new Float64Array(n * n), h = n / 2;
+    for (let y = 0; y < n; y++) {
+        const yy = ((y + h) % n) * n;
+        for (let x = 0; x < n; x++) out[yy + (x + h) % n] = a[y * n + x];
+    }
+    return out;
+}
+
+// ─────────────────────────────────────────────
+// SKY MODELS (centred layout, row index ↔ m, column ↔ l)
+// ─────────────────────────────────────────────
+function mulberry32(a) {
+    return function () {
+        a |= 0; a = a + 0x6D2B79F5 | 0;
+        let t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+const sizeRad = () => fovRad() * Math.pow(10, Math.log10(3 / state.N) + state.sizeT * (Math.log10(0.45) - Math.log10(3 / state.N)));
+
+function buildSky() {
+    const N = state.N, h = N / 2, pix = fovRad() / N;
+    const s = sizeRad(), rot = state.rotDeg * DEG, cr = Math.cos(rot), sr = Math.sin(rot);
+    const img = new Float64Array(N * N);
+    const rng = mulberry32(state.seed * 7919 + 17);
+    const each = fn => {
+        for (let y = 0; y < N; y++) {
+            const m = (y - h) * pix;
+            for (let x = 0; x < N; x++) img[y * N + x] += fn((x - h) * pix, m);
+        }
+    };
+    // compact source: Gaussian with σ ≈ 0.7 pixel so it is visible but unresolved
+    const compact = (l0, m0, f) => {
+        const cx = l0 / pix + h, cy = m0 / pix + h, sg = 0.7;
+        for (let y = Math.floor(cy) - 3; y <= Math.floor(cy) + 4; y++) {
+            if (y < 0 || y >= N) continue;
+            for (let x = Math.floor(cx) - 3; x <= Math.floor(cx) + 4; x++) {
+                if (x < 0 || x >= N) continue;
+                img[y * N + x] += f * Math.exp(-((x - cx) ** 2 + (y - cy) ** 2) / (2 * sg * sg));
+            }
+        }
+    };
+    const disk = (l0, m0, rad, f) => {
+        const cx = l0 / pix + h, cy = m0 / pix + h, rp = rad / pix;
+        for (let y = Math.floor(cy - rp); y <= Math.ceil(cy + rp); y++) {
+            if (y < 0 || y >= N) continue;
+            for (let x = Math.floor(cx - rp); x <= Math.ceil(cx + rp); x++) {
+                if (x < 0 || x >= N) continue;
+                if ((x - cx) ** 2 + (y - cy) ** 2 <= rp * rp) img[y * N + x] += f;
+            }
+        }
+    };
+    const fov = fovRad();
+
+    switch (state.sky) {
+        case 'gaussian': {
+            const sg = s / 2.3548;
+            each((l, m) => Math.exp(-(l * l + m * m) / (2 * sg * sg)));
+            break;
+        }
+        case 'ellipse': {
+            const a = s / 2, b = a * 0.45;
+            each((l, m) => {
+                const lp = cr * l + sr * m, mp = -sr * l + cr * m;
+                return (lp / a) ** 2 + (mp / b) ** 2 <= 1 ? 1 : 0;
+            });
+            break;
+        }
+        case 'square': {
+            each((l, m) => {
+                const lp = cr * l + sr * m, mp = -sr * l + cr * m;
+                return Math.abs(lp) <= s / 2 && Math.abs(mp) <= s / 2 ? 1 : 0;
+            });
+            break;
+        }
+        case 'circles': {
+            const spread = Math.min(0.36 * fov, 2.2 * s);
+            for (let i = 0; i < 14; i++) {
+                const l0 = (rng() * 2 - 1) * spread, m0 = (rng() * 2 - 1) * spread;
+                disk(l0, m0, (s / 2) * (0.3 + 0.7 * rng()), 0.4 + 0.6 * rng());
+            }
+            break;
+        }
+        case 'ring': {
+            const Rr = s / 2, w = Math.max(s / 16, 0.8 * pix);
+            each((l, m) => Math.exp(-((Math.hypot(l, m) - Rr) ** 2) / (2 * w * w)));
+            break;
+        }
+        case 'double': {
+            compact(cr * s / 2, sr * s / 2, 1);
+            compact(-cr * s / 2, -sr * s / 2, 1);
+            break;
+        }
+        case 'points': {
+            const spread = Math.min(0.42 * fov, s);
+            for (let i = 0; i < 9; i++) compact((rng() * 2 - 1) * spread, (rng() * 2 - 1) * spread, 0.3 + 0.7 * rng());
+            break;
+        }
+        case 'diffuse': {
+            const sg = s / 2.3548;
+            each((l, m) => 0.6 * Math.exp(-(l * l + m * m) / (2 * sg * sg)));
+            const spread = Math.min(0.42 * fov, s);
+            for (let i = 0; i < 6; i++) compact((rng() * 2 - 1) * spread, (rng() * 2 - 1) * spread, 1);
+            break;
+        }
+    }
+    return img;
+}
+
+// ─────────────────────────────────────────────
+// IMAGING
+// ─────────────────────────────────────────────
+function weightsFrom(counts) {
+    if (state.weighting === 'natural') return counts;
+    const w = new Float64Array(counts.length);
+    for (let i = 0; i < counts.length; i++) w[i] = counts[i] > 0 ? 1 : 0;
+    return w;
+}
+// Dirty image (centred) for a given weight grid W (FFT order)
+function dirtyFrom(Vre, Vim, W, N) {
+    let sw = 0;
+    const re = new Float64Array(N * N), im = new Float64Array(N * N);
+    for (let i = 0; i < W.length; i++) { re[i] = Vre[i] * W[i]; im[i] = Vim[i] * W[i]; sw += W[i]; }
+    if (sw === 0) return new Float64Array(N * N);
+    fft2(re, im, N, true);
+    for (let i = 0; i < re.length; i++) re[i] /= sw;
+    return shift(re, N);
+}
+
+function computeAll() {
+    const N = state.N;
+    const cov = computeCoverage();
+    const sky = buildSky();
+    const Vre = shift(sky, N), Vim = new Float64Array(N * N);
+    fft2(Vre, Vim, N, false);
+    const W = weightsFrom(cov.counts);
+    let sw = 0;
+    const pre = new Float64Array(N * N), pim = new Float64Array(N * N);
+    for (let i = 0; i < W.length; i++) { pre[i] = W[i]; sw += W[i]; }
+    fft2(pre, pim, N, true);
+    if (sw > 0) for (let i = 0; i < pre.length; i++) pre[i] /= sw;
+    const psf = shift(pre, N);
+    const dirty = dirtyFrom(Vre, Vim, W, N);
+    R = { ...cov, sky, Vre, Vim, W, psf, dirty, N };
+}
+
+// ─────────────────────────────────────────────
+// COLOUR MAPS
+// ─────────────────────────────────────────────
+function makeLUT(stops) {
+    const lut = new Uint8ClampedArray(256 * 3);
+    for (let i = 0; i < 256; i++) {
+        const t = i / 255;
+        let k = 0;
+        while (k < stops.length - 2 && t > stops[k + 1][0]) k++;
+        const [t0, c0] = stops[k], [t1, c1] = stops[k + 1];
+        const f = (t - t0) / (t1 - t0);
+        for (let c = 0; c < 3; c++) lut[i * 3 + c] = c0[c] + (c1[c] - c0[c]) * f;
+    }
+    return lut;
+}
+const hex = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16));
+const LUT_DIV = makeLUT([[0, hex('#053061')], [0.2, hex('#2166ac')], [0.4, hex('#92c5de')], [0.5, hex('#f7f7f7')], [0.6, hex('#f4a582')], [0.8, hex('#d6604d')], [1, hex('#67001f')]]);
+const LUT_INF = makeLUT([[0, hex('#000004')], [0.2, hex('#320a5e')], [0.4, hex('#781c6d')], [0.6, hex('#bc3754')], [0.8, hex('#f37819')], [0.9, hex('#fbb61a')], [1, hex('#fcffa4')]]);
+
+// ─────────────────────────────────────────────
+// CANVAS HELPERS
+// ─────────────────────────────────────────────
+function fitCanvas(cv) {
+    const r = cv.parentElement.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(10, Math.round(r.width)), hgt = Math.max(10, Math.round(r.height));
+    if (cv.width !== w * dpr || cv.height !== hgt * dpr) { cv.width = w * dpr; cv.height = hgt * dpr; }
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w, h: hgt };
+}
+const offscreen = document.createElement('canvas');
+// Draw an N×N RGBA buffer filling the canvas, row 0 at the bottom (m increases upward)
+function blit(cv, rgba, n) {
+    const { ctx, w, h } = fitCanvas(cv);
+    offscreen.width = n; offscreen.height = n;
+    const oc = offscreen.getContext('2d');
+    oc.putImageData(new ImageData(rgba, n, n), 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.imageSmoothingEnabled = n < w;
+    ctx.save();
+    ctx.translate(0, h); ctx.scale(1, -1);
+    ctx.drawImage(offscreen, 0, 0, w, h);
+    ctx.restore();
+    return { ctx, w, h };
+}
+// Image panel: signed data, symmetric (diverging) or min→max (inferno)
+function fmtVal(x) {
+    if (x === 0) return '0';
+    const a = Math.abs(x);
+    if (a >= 1e4 || a < 1e-2) return x.toExponential(1).replace('e', '×10^').replace(/\^\+?(-?\d+)/, (_, e) => `<sup>${e}</sup>`);
+    return String(+x.toPrecision(3));
+}
+// Horizontal colourbar under a panel: lut gradient from lo to hi with a caption
+function drawCbar(id, lut, lo, hi, caption) {
+    const el = $(id);
+    if (!el.firstChild) el.innerHTML = '<span class="cb-lo"></span><canvas></canvas><span class="cb-hi"></span><span class="cb-mid"></span>';
+    const cv = el.querySelector('canvas');
+    cv.width = 256; cv.height = 1;
+    const img = new Uint8ClampedArray(256 * 4);
+    for (let i = 0; i < 256; i++) { img[4 * i] = lut[3 * i]; img[4 * i + 1] = lut[3 * i + 1]; img[4 * i + 2] = lut[3 * i + 2]; img[4 * i + 3] = 255; }
+    cv.getContext('2d').putImageData(new ImageData(img, 256, 1), 0, 0);
+    el.querySelector('.cb-lo').innerHTML = typeof lo === 'number' ? fmtVal(lo) : lo;
+    el.querySelector('.cb-hi').innerHTML = typeof hi === 'number' ? fmtVal(hi) : hi;
+    el.querySelector('.cb-mid').innerHTML = caption;
+}
+function drawImage(cv, data, n, { positive = false, cb = null, caption = '' } = {}) {
+    let mn = Infinity, mx = -Infinity;
+    for (let i = 0; i < data.length; i++) { if (data[i] < mn) mn = data[i]; if (data[i] > mx) mx = data[i]; }
+    const rgba = new Uint8ClampedArray(n * n * 4);
+    const div = state.cmap === 'div', lut = div ? LUT_DIV : LUT_INF;
+    const amax = Math.max(Math.abs(mn), Math.abs(mx)) || 1;
+    const lo = positive ? 0 : mn, span = (mx - lo) || 1;
+    for (let i = 0; i < data.length; i++) {
+        const t = div ? 0.5 + 0.5 * data[i] / amax : (data[i] - lo) / span;
+        const k = Math.max(0, Math.min(255, Math.round(t * 255))) * 3;
+        rgba[4 * i] = lut[k]; rgba[4 * i + 1] = lut[k + 1]; rgba[4 * i + 2] = lut[k + 2]; rgba[4 * i + 3] = 255;
+    }
+    const out = blit(cv, rgba, n);
+    scaleBar(out.ctx, out.w, out.h, fovRad(), fmtAng, state.cmap === 'inferno');
+    if (cb) {
+        const [cLo, cHi] = div ? [-amax, amax] : [lo, mx];
+        drawCbar(cb, lut, cLo, cHi, caption + (div ? ' &middot; white = 0' : ''));
+    }
+    return { mn, mx };
+}
+function scaleBar(ctx, w, h, extent, fmt, dark) {
+    const target = extent * 0.22, len = niceNum(target), px = len / extent * w;
+    const x0 = 12, y0 = h - 14;
+    ctx.save();
+    ctx.strokeStyle = dark ? '#ffffff' : '#0f172a';
+    ctx.fillStyle = dark ? '#ffffff' : '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + px, y0); ctx.stroke();
+    ctx.font = '600 10px Inter, sans-serif';
+    ctx.fillText(fmt(len), x0, y0 - 5);
+    ctx.restore();
+}
+function cornerText(ctx, w, text, dark) {
+    ctx.save();
+    ctx.font = '600 10px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = dark ? 'rgba(255,255,255,0.85)' : '#475569';
+    ctx.fillText(text, w - 8, 14);
+    ctx.restore();
+}
+
+// ─────────────────────────────────────────────
+// PANELS
+// ─────────────────────────────────────────────
+function drawLayout() {
+    const cv = $('cv-layout');
+    const { ctx, w, h } = fitCanvas(cv);
+    const a = LAYOUTS[state.stage], n = a.length / 3;
+    const Es = [], Ns = [];
+    for (let i = 0; i < n; i++) { Es.push(a[3 * i]); Ns.push(a[3 * i + 1]); }
+    const med = arr => { const s = [...arr].sort((p, q) => p - q); return s[Math.floor(s.length / 2)]; };
+    const cE = med(Es), cN = med(Ns);
+    let half = 0;
+    for (let i = 0; i < n; i++) half = Math.max(half, Math.abs(Es[i] - cE), Math.abs(Ns[i] - cN));
+    half = Math.max(half * 1.1, 150) / state.zoom;
+    const sc = w / (2 * half);
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
+    // crosshair through array centre (0,0) if visible
+    const ox = (0 - cE) * sc + w / 2, oy = h / 2 - (0 - cN) * sc;
+    ctx.strokeStyle = '#f1f5f9'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(ox, 0); ctx.lineTo(ox, h); ctx.moveTo(0, oy); ctx.lineTo(w, oy); ctx.stroke();
+    const rr = Math.max(1.6, STATION_R * sc);
+    for (let i = 0; i < n; i++) {
+        const x = (Es[i] - cE) * sc + w / 2, y = h / 2 - (Ns[i] - cN) * sc;
+        if (x < -rr || x > w + rr || y < -rr || y > h + rr) continue;
+        const on = R && R.stUsed[i];
+        ctx.beginPath(); ctx.arc(x, y, rr, 0, 2 * Math.PI);
+        if (on) { ctx.fillStyle = '#2563eb'; ctx.fill(); }
+        else { ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1; ctx.stroke(); }
+    }
+    scaleBar(ctx, w, h, 2 * half, m => fmtKm(m), false);
+    cornerText(ctx, w, 'N ↑  E →', false);
+    if (R) {
+        const nOn = R.stUsed.reduce((p, q) => p + q, 0);
+        $('note-layout').innerHTML = `<strong>${n}</strong> stations, <strong>${fmtInt(R.B.nb)}</strong> baselines (longest ${fmtKm(R.B.bmax)}). <span class="legend-dot" style="background:#2563eb"></span>${nOn} contribute to the image; hollow ones are lost to the cut or the grid.`;
+    }
+}
+
+function drawUV() {
+    const cv = $('cv-uv');
+    const rgba = new Uint8ClampedArray(UV_RES * UV_RES * 4);
+    const colours = [null, hex('#cbd5e1'), hex('#f59e0b'), hex('#2563eb')];
+    // category per pixel (1 cut, 2 off-grid, 3 used), dilated 3×3 so sparse snapshots stay visible
+    const cat = new Uint8Array(UV_RES * UV_RES), dil = new Uint8Array(UV_RES * UV_RES);
+    for (let i = 0; i < cat.length; i++) cat[i] = R.hIn[i] ? 3 : R.hOff[i] ? 2 : R.hCut[i] ? 1 : 0;
+    for (let y = 0; y < UV_RES; y++) for (let x = 0; x < UV_RES; x++) {
+        const c = cat[y * UV_RES + x];
+        if (!c) continue;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const yy = y + dy, xx = x + dx;
+            if (yy < 0 || yy >= UV_RES || xx < 0 || xx >= UV_RES) continue;
+            const j = yy * UV_RES + xx;
+            if (c > dil[j]) dil[j] = c;
+        }
+    }
+    for (let i = 0; i < UV_RES * UV_RES; i++) {
+        const c = colours[dil[i]];
+        if (c) { rgba[4 * i] = c[0]; rgba[4 * i + 1] = c[1]; rgba[4 * i + 2] = c[2]; }
+        else { rgba[4 * i] = 255; rgba[4 * i + 1] = 255; rgba[4 * i + 2] = 255; }
+        rgba[4 * i + 3] = 255;
+    }
+    // histogram rows are already top-down, so draw without the flip
+    const { ctx, w, h } = fitCanvas(cv);
+    offscreen.width = UV_RES; offscreen.height = UV_RES;
+    offscreen.getContext('2d').putImageData(new ImageData(rgba, UV_RES, UV_RES), 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(offscreen, 0, 0, w, h);
+
+    const ext = R.ext, sc = w / (2 * ext), cx = w / 2, cy = h / 2;
+    ctx.strokeStyle = 'rgba(15,23,42,0.12)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
+    ctx.setLineDash([4, 3]);
+    // cut circles
+    ctx.strokeStyle = '#64748b';
+    for (const r of [R.cutLo, R.cutHi]) {
+        if (r > 0 && isFinite(r) && r * sc < w) { ctx.beginPath(); ctx.arc(cx, cy, r * sc, 0, 2 * Math.PI); ctx.stroke(); }
+    }
+    // image-grid boundary
+    if (R.uNyq < ext) {
+        ctx.strokeStyle = '#f59e0b';
+        const g = R.uNyq * sc;
+        ctx.strokeRect(cx - g, cy - g, 2 * g, 2 * g);
+    }
+    ctx.setLineDash([]);
+    // fringe marker
+    if (state.fringe) {
+        for (const s of [1, -1]) {
+            const x = cx + s * state.fringe.u * sc, y = cy - s * state.fringe.v * sc;
+            ctx.beginPath(); ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 2; ctx.stroke();
+        }
+    }
+    const fmtAxis = state.cutUnit === 'km' ? x => fmtKm(x * lambdaM()) : fmtLam;
+    ctx.save();
+    ctx.font = '600 10px Inter, sans-serif'; ctx.fillStyle = '#475569';
+    ctx.fillText(`u, v ∈ ±${fmtAxis(ext)}`, 8, 14);
+    ctx.restore();
+    const tick = niceNum(ext * 0.45);
+    ctx.save();
+    ctx.font = '500 9px Inter, sans-serif'; ctx.fillStyle = '#64748b'; ctx.textAlign = 'center';
+    ctx.fillText(fmtAxis(tick), cx + tick * sc, cy + 12);
+    ctx.fillText('u →', w - 14, cy - 5);
+    ctx.fillText('v ↑', cx + 14, 12 + 12);
+    ctx.restore();
+}
+
+function drawFT() {
+    const N = R.N, cv = $('cv-ft');
+    const amp = new Float64Array(N * N);
+    let amax = 0;
+    for (let i = 0; i < amp.length; i++) { amp[i] = Math.hypot(R.Vre[i], R.Vim[i]); if (amp[i] > amax) amax = amp[i]; }
+    const A = shift(amp, N), W = shift(R.W, N);
+    const lmax = Math.log10(amax || 1), decades = 4;
+    const rgba = new Uint8ClampedArray(N * N * 4);
+    for (let i = 0; i < N * N; i++) {
+        const t = Math.max(0, Math.min(1, (Math.log10(A[i] + 1e-30) - (lmax - decades)) / decades));
+        if (W[i] > 0) {
+            const k = Math.round(t * 255) * 3;
+            rgba[4 * i] = LUT_INF[k]; rgba[4 * i + 1] = LUT_INF[k + 1]; rgba[4 * i + 2] = LUT_INF[k + 2];
+        } else {
+            const g = Math.round(248 - t * 150);
+            rgba[4 * i] = g; rgba[4 * i + 1] = g + 2; rgba[4 * i + 2] = g + 4;
+        }
+        rgba[4 * i + 3] = 255;
+    }
+    const { ctx, w, h } = blit(cv, rgba, N);
+    // fringe marker
+    if (state.fringe) {
+        const sc = w / (2 * R.uNyq);
+        for (const s of [1, -1]) {
+            const x = w / 2 + s * state.fringe.u * sc, y = h / 2 - s * state.fringe.v * sc;
+            ctx.beginPath(); ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 2; ctx.stroke();
+        }
+    }
+    const fmtAxis = state.cutUnit === 'km' ? x => fmtKm(x * lambdaM()) : fmtLam;
+    cornerText(ctx, w, `u, v ∈ ±${fmtAxis(R.uNyq)}`, false);
+    drawCbar('cb-ft', LUT_INF, `10<sup>&minus;${decades}</sup>`, '1', '|V| / |V|<sub>max</sub> of measured modes (log); grey = unmeasured');
+}
+
+function drawP5() {
+    const N = R.N, cv = $('cv-psf');
+    if (state.p5 === 'fringe' && state.fringe) {
+        const { u, v } = state.fringe, pix = fovRad() / N, h = N / 2;
+        const img = new Float64Array(N * N);
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
+            img[y * N + x] = Math.cos(2 * Math.PI * (u * (x - h) * pix + v * (y - h) * pix));
+        drawImage(cv, img, N, { cb: 'cb-psf', caption: 'cos 2π(ul + vm)' });
+        const r = Math.hypot(u, v), period = 1 / r;
+        const pa = (Math.atan2(u, v) / DEG + 360) % 180;
+        // visibility at this point (nearest grid cell)
+        const iu = Math.round(u / R.du), iv = Math.round(v / R.du);
+        let vis = '';
+        if (Math.abs(iu) < N / 2 && Math.abs(iv) < N / 2) {
+            const idx = ((iv + N) % N) * N + ((iu + N) % N);
+            const tot = Math.hypot(R.Vre[0], R.Vim[0]) || 1;
+            const amp = Math.hypot(R.Vre[idx], R.Vim[idx]) / tot, ph = Math.atan2(R.Vim[idx], R.Vre[idx]) / DEG;
+            vis = ` For the current sky this baseline would record |V| = ${(amp * 100).toFixed(amp < 0.01 ? 2 : 1)}% of the total flux, phase ${ph.toFixed(0)}°.`;
+        }
+        const alias = period < 2 * pix ? ' <strong class="text-amber-700">Finer than two pixels: aliased on this grid. Shrink the field of view.</strong>' : '';
+        $('note-psf').innerHTML = `Baseline (u, v) = (${fmtLam(u)}, ${fmtLam(v)}), length ${fmtKm(r * lambdaM())}. It responds to ripples of period <strong>${fmtAng(period)}</strong>, wavefronts at PA ${pa.toFixed(0)}°.${vis}${alias}`;
+        $('p5-title').textContent = '⑤ Fringe of one baseline';
+    } else {
+        drawImage(cv, R.psf, N, { cb: 'cb-psf', caption: 'PSF, relative to its peak' });
+        const beam = R.rMax > 0 ? fmtAng(1 / R.rMax) : '—';
+        $('note-psf').innerHTML = R.nIn === 0
+            ? 'No baselines survive: the PSF is empty.'
+            : `Image of a single point source. Main lobe ≈ <strong>${beam}</strong> (1/u<sub>max</sub>); every ring and streak around it is a sidelobe caused by gaps in the uv plane.`;
+        $('p5-title').textContent = '⑤ PSF (dirty beam)';
+    }
+}
+
+const DIRTY_CAPTION = 'Sky units convolved with the PSF (per beam)';
+function drawSkyAndDirty(dirty = R.dirty) {
+    drawImage($('cv-sky'), R.sky, R.N, { positive: true, cb: 'cb-sky', caption: 'Brightness I (arbitrary units per pixel)' });
+    drawImage($('cv-dirty'), dirty, R.N, { cb: 'cb-dirty', caption: DIRTY_CAPTION });
+}
+
+function drawAll() {
+    if (!R) return;
+    drawLayout(); drawUV(); drawFT(); drawP5(); drawSkyAndDirty();
+    updateInsights();
+}
+
+// ─────────────────────────────────────────────
+// INSIGHTS
+// ─────────────────────────────────────────────
+function updateInsights() {
+    const out = [];
+    const tot = R.nIn + R.nCut + R.nOff;
+    const lam = lambdaM();
+    if (R.nSteps === 0) {
+        out.push(`<span class="text-red-700 font-semibold">The source never rises above 15° elevation at declination ${state.decDeg}°.</span> Try a declination further south.`);
+    } else if (R.nIn === 0) {
+        out.push(`<span class="text-red-700 font-semibold">No samples survive.</span> Loosen the baseline cut or widen the field of view.`);
+    } else {
+        const res = 1 / R.rMax, las = 1 / R.rMin, s = sizeRad();
+        out.push(`<strong>${fmtInt(R.nIn * 2)}</strong> uv samples used (${R.nSteps} time step${R.nSteps > 1 ? 's' : ''} × baselines × 2 for the conjugate). Shortest used: ${fmtLam(R.rMin)} (${fmtKm(R.rMin * lam)}); longest: ${fmtLam(R.rMax)} (${fmtKm(R.rMax * lam)}).`);
+        let sizeMsg = '';
+        if (['double'].includes(state.sky)) sizeMsg = s > res ? `The two sources are ${fmtAng(s)} apart, wider than the beam, so they should be <strong>resolved</strong>.` : `The two sources are ${fmtAng(s)} apart, closer than the beam, so they <strong>blur into one</strong>.`;
+        else if (['gaussian', 'ellipse', 'square', 'ring', 'diffuse'].includes(state.sky)) sizeMsg = s > las ? `Your structure (${fmtAng(s)}) is <strong>larger than the largest recoverable scale</strong>, so most of its flux is filtered out.` : s < res ? `Your structure (${fmtAng(s)}) is <strong>smaller than the beam</strong>, so it looks like a point source.` : `Your structure (${fmtAng(s)}) sits between the two, so the array sees it.`;
+        out.push(`Resolution ≈ <strong>${fmtAng(res)}</strong> (1/u<sub>max</sub>); largest recoverable scale ≈ <strong>${fmtAng(las)}</strong> (1/u<sub>min</sub>). ${sizeMsg}`);
+    }
+    if (R.nOff > 0) {
+        const pct = 100 * R.nOff / tot;
+        out.push(`<span class="text-amber-700">${pct.toFixed(pct < 1 ? 2 : 0)}% of samples lie beyond the image grid (|u| or |v| &gt; ${fmtLam(R.uNyq)}): they would resolve features smaller than one pixel. Shrink the field of view to use them.</span>`);
+    }
+    if (R.nSteps > 0 && R.nSteps < R.nT) out.push(`The source is below 15° elevation for ${R.nT - R.nSteps} of ${R.nT} time steps.`);
+    $('insights-panel').innerHTML = out.map(s => `<p>${s}</p>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// BUILD-UP ANIMATION: add uv cells from short to long baselines
+// ─────────────────────────────────────────────
+const BUILD_MS = 10000;      // total build-up duration
+const BUILD_FRAME_MS = 80;   // redraw at most every 80 ms
+function stopAnim() {
+    if (animId) { cancelAnimationFrame(animId); animId = null; }
+    $('btn-build').textContent = '▶ Build up, short → long';
+}
+function runBuild() {
+    if (animId) { stopAnim(); drawSkyAndDirty(); return; }
+    if (!R || R.nIn === 0) return;
+    const N = R.N, cells = [];
+    for (let i = 0; i < R.W.length; i++) if (R.W[i] > 0) {
+        let iv = Math.floor(i / N), iu = i % N;
+        if (iv >= N / 2) iv -= N; if (iu >= N / 2) iu -= N;
+        cells.push([iu * iu + iv * iv, i]);
+    }
+    cells.sort((p, q) => p[0] - q[0]);
+    // Grow the uv radius logarithmically over BUILD_MS, so each octave of scale gets equal time
+    const Wp = new Float64Array(N * N);
+    const r0 = Math.max(1, Math.sqrt(cells[0][0])), r1 = Math.max(r0 * 1.01, Math.sqrt(cells[cells.length - 1][0]));
+    let k = 0, t0 = null, lastDraw = -Infinity;
+    $('btn-build').textContent = '■ Stop';
+    const step = now => {
+        if (t0 === null) t0 = now;
+        const p = Math.min(1, (now - t0) / BUILD_MS);
+        if (now - lastDraw >= BUILD_FRAME_MS || p === 1) {
+            lastDraw = now;
+            const rLim = r0 * Math.pow(r1 / r0, p);
+            while (k < cells.length && Math.sqrt(cells[k][0]) <= rLim) { const i = cells[k][1]; Wp[i] = R.W[i]; k++; }
+            const d = dirtyFrom(R.Vre, R.Vim, Wp, N);
+            drawImage($('cv-dirty'), d, N, { cb: 'cb-dirty', caption: DIRTY_CAPTION });
+            const rNow = Math.sqrt(cells[Math.max(0, k - 1)][0]) * R.du;
+            $('note-dirty').innerHTML = `Using baselines up to <strong>${fmtLam(rNow)}</strong> (${fmtKm(rNow * lambdaM())}) → resolution ≈ ${fmtAng(1 / Math.max(rNow, R.du))}.`;
+        }
+        if (p < 1) animId = requestAnimationFrame(step);
+        else { animId = null; $('btn-build').textContent = '▶ Build up, short → long'; }
+    };
+    animId = requestAnimationFrame(step);
+}
+
+// ─────────────────────────────────────────────
+// SCHEDULING
+// ─────────────────────────────────────────────
+let pending = false;
+function schedule() {
+    stopAnim();
+    $('note-dirty').innerHTML = 'True sky convolved with the PSF: what the telescope hands back.';
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+        pending = false;
+        computeAll();
+        drawAll();
+    });
+}
+
+// ─────────────────────────────────────────────
+// UI SYNC
+// ─────────────────────────────────────────────
+function setSeg(id, val) {
+    document.querySelectorAll(`#${id} button`).forEach(b => b.classList.toggle('active', b.dataset.v === String(val)));
+}
+function cutDisplay(x) {
+    if (!isFinite(x)) return '';
+    return state.cutUnit === 'km' ? +x.toPrecision(4) : +x.toPrecision(5);
+}
+function syncUI() {
+    $('stage-select').value = state.stage;
+    const B = getBaselines(state.stage);
+    $('stage-note').innerHTML = `${B.n} stations &rarr; ${fmtInt(B.nb)} baselines.`;
+
+    // spectral
+    setSeg('spec-seg', state.specUnit);
+    const z = NU21 / state.nu - 1;
+    const sl = $('spec-slider'), sn = $('spec-num');
+    if (state.specUnit === 'freq') {
+        sl.min = NU_MIN; sl.max = NU_MAX; sl.step = 1; sl.value = state.nu;
+        sn.min = NU_MIN; sn.max = NU_MAX; sn.value = +state.nu.toFixed(2);
+        $('spec-note').innerHTML = `z = ${z.toFixed(2)} &middot; λ = ${lambdaM().toFixed(2)} m`;
+    } else {
+        sl.min = Z_MIN.toFixed(2); sl.max = Z_MAX.toFixed(2); sl.step = 0.01; sl.value = z;
+        sn.min = Z_MIN.toFixed(2); sn.max = Z_MAX.toFixed(2); sn.value = +z.toFixed(3);
+        $('spec-note').innerHTML = `ν = ${state.nu.toFixed(1)} MHz &middot; λ = ${lambdaM().toFixed(2)} m`;
+    }
+
+    $('slider-dur').value = state.durH;
+    $('label-dur').textContent = state.durH === 0 ? 'snapshot' : `${state.durH} h`;
+    $('slider-dec').value = state.decDeg;
+    $('label-dec').innerHTML = `${state.decDeg < 0 ? '&minus;' : '+'}${Math.abs(state.decDeg)}&deg;`;
+
+    // cut
+    setSeg('cut-seg', state.cutUnit);
+    if (document.activeElement !== $('cut-min')) $('cut-min').value = state.cutMin > 0 ? cutDisplay(state.cutMin) : '';
+    if (document.activeElement !== $('cut-max')) $('cut-max').value = cutDisplay(state.cutMax);
+    const [lo, hi] = cutLambda(), lam = lambdaM();
+    $('cut-note').innerHTML = state.cutUnit === 'km'
+        ? `= ${fmtLam(lo)} – ${fmtLam(hi)} at ${state.nu.toFixed(0)} MHz. Cut on projected uv distance.`
+        : `= ${fmtKm(lo * lam)} – ${fmtKm(hi * lam)} at ${state.nu.toFixed(0)} MHz. Cut on projected uv distance.`;
+
+    // sky
+    $('sky-select').value = state.sky;
+    $('slider-size').value = state.sizeT;
+    $('label-size').textContent = fmtAng(sizeRad());
+    $('size-name').textContent = { double: 'Separation', points: 'Spread', diffuse: 'Blob FWHM', gaussian: 'FWHM', ring: 'Diameter', circles: 'Circle size' }[state.sky] || 'Size';
+    $('slider-rot').value = state.rotDeg;
+    $('label-rot').textContent = `${state.rotDeg}°`;
+    $('rot-wrap').style.opacity = ['ellipse', 'square', 'double'].includes(state.sky) ? 1 : 0.35;
+    $('btn-reshuffle').style.visibility = ['circles', 'points', 'diffuse'].includes(state.sky) ? 'visible' : 'hidden';
+
+    // imaging
+    $('fov-select').value = String(state.fovDeg);
+    setSeg('n-seg', state.N);
+    setSeg('w-seg', state.weighting);
+    setSeg('cmap-seg', state.cmap);
+    const pix = fovRad() / state.N, uNyq = state.N / 2 / fovRad();
+    $('fov-note').innerHTML = `Pixel ${fmtAng(pix)} &middot; grid reaches |u| = ${fmtLam(uNyq)} (${fmtKm(uNyq * lam)} at this ν).`;
+
+    setSeg('zoom-seg', state.zoom);
+    setSeg('uvext-seg', state.uvExtent);
+    setSeg('p5-seg', state.p5);
+}
+function update(patch) {
+    Object.assign(state, patch);
+    syncUI();
+    schedule();
+}
+
+// ─────────────────────────────────────────────
+// EVENTS
+// ─────────────────────────────────────────────
+function onSeg(id, fn) {
+    $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (b) fn(b.dataset.v); });
+}
+$('stage-select').addEventListener('change', e => update({ stage: e.target.value }));
+onSeg('spec-seg', v => update({ specUnit: v }));
+function setSpec(val) {
+    if (!isFinite(val)) return;
+    const nu = state.specUnit === 'freq' ? val : NU21 / (1 + val);
+    update({ nu: Math.max(NU_MIN, Math.min(NU_MAX, nu)) });
+}
+$('spec-slider').addEventListener('input', e => setSpec(parseFloat(e.target.value)));
+$('spec-num').addEventListener('change', e => setSpec(parseFloat(e.target.value)));
+$('slider-dur').addEventListener('input', e => update({ durH: parseFloat(e.target.value) }));
+$('slider-dec').addEventListener('input', e => update({ decDeg: parseInt(e.target.value) }));
+
+onSeg('cut-seg', v => {
+    if (v === state.cutUnit) return;
+    const f = v === 'km' ? lambdaM() / 1000 : 1000 / lambdaM();   // λ→km or km→λ
+    update({ cutUnit: v, cutMin: state.cutMin * f, cutMax: state.cutMax * f });
+});
+$('cut-min').addEventListener('change', e => { const x = parseFloat(e.target.value); update({ cutMin: isFinite(x) && x > 0 ? x : 0 }); });
+$('cut-max').addEventListener('change', e => { const x = parseFloat(e.target.value); update({ cutMax: isFinite(x) && x > 0 ? x : Infinity }); });
+
+$('sky-select').addEventListener('change', e => update({ sky: e.target.value }));
+$('slider-size').addEventListener('input', e => update({ sizeT: parseFloat(e.target.value) }));
+$('slider-rot').addEventListener('input', e => update({ rotDeg: parseInt(e.target.value) }));
+$('btn-reshuffle').addEventListener('click', () => update({ seed: state.seed + 1 }));
+
+$('fov-select').addEventListener('change', e => update({ fovDeg: parseFloat(e.target.value) }));
+onSeg('n-seg', v => update({ N: parseInt(v) }));
+onSeg('w-seg', v => update({ weighting: v }));
+onSeg('cmap-seg', v => { state.cmap = v; syncUI(); drawAll(); });
+onSeg('zoom-seg', v => { state.zoom = parseFloat(v); syncUI(); drawLayout(); });
+onSeg('uvext-seg', v => update({ uvExtent: v }));
+onSeg('p5-seg', v => {
+    if (v === 'fringe' && !state.fringe && R && R.rMax > 0) state.fringe = { u: R.rMax * 0.5, v: R.rMax * 0.3 };
+    state.p5 = v; syncUI(); drawAll();
+});
+
+function pickFringe(cv, ext, e) {
+    const r = cv.getBoundingClientRect();
+    const u = ((e.clientX - r.left) / r.width * 2 - 1) * ext;
+    const v = (1 - (e.clientY - r.top) / r.height * 2) * ext;
+    if (Math.hypot(u, v) < 1e-9) return;
+    state.fringe = { u, v };
+    state.p5 = 'fringe';
+    syncUI(); drawAll();
+}
+$('cv-uv').addEventListener('click', e => R && pickFringe($('cv-uv'), R.ext, e));
+$('cv-ft').addEventListener('click', e => R && pickFringe($('cv-ft'), R.uNyq, e));
+$('btn-build').addEventListener('click', runBuild);
+
+let resizeTimer;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawAll, 80); });
+
+// ─────────────────────────────────────────────
+// GUIDED EXPERIMENTS
+// ─────────────────────────────────────────────
+const sizeT_for = (rad, fovDeg, N) => {
+    const lo = Math.log10(3 / N), hi = Math.log10(0.45);
+    return Math.max(0, Math.min(1, (Math.log10(rad / (fovDeg * DEG)) - lo) / (hi - lo)));
+};
+const AM = DEG / 60;
+const EXPERIMENTS = [
+    {
+        title: 'One baseline = one fringe',
+        text: 'AA0.5 has just 4 stations: 6 baselines, 12 uv points in a snapshot. Each point measures how much of one cosine ripple is in the sky. Click any blue dot in ② to see its ripple in ⑤.',
+        actions: [['Set up', () => {
+            update({ stage: 'AA0.5', durH: 0, fovDeg: 2, N: 256, cutMin: 0, cutMax: Infinity, sky: 'gaussian', sizeT: sizeT_for(20 * AM, 2, 256), uvExtent: 'grid', p5: 'fringe' });
+            requestAnimationFrame(() => requestAnimationFrame(() => { if (R && R.rMax > 0) { state.fringe = { u: R.rMax * 0.7, v: R.rMax * 0.4 }; drawAll(); } }));
+        }]],
+    },
+    {
+        title: 'Earth-rotation synthesis',
+        text: 'With 16 stations a snapshot is a sparse scatter of dots. Let the Earth turn and each dot stretches into an arc. Watch the PSF sidelobes calm down as the uv plane fills.',
+        actions: [
+            ['Snapshot', () => update({ stage: 'AA1', durH: 0, fovDeg: 4, cutMin: 0, cutMax: Infinity, sky: 'circles', p5: 'psf' })],
+            ['8 hours', () => update({ stage: 'AA1', durH: 8, fovDeg: 4, cutMin: 0, cutMax: Infinity, sky: 'circles', p5: 'psf' })],
+        ],
+    },
+    {
+        title: 'Missing short spacings',
+        text: 'A big diffuse blob lives at small |u|. Drop the short baselines and the blob vanishes while the compact sources survive, sitting in a negative bowl. This is why interferometers "resolve out" large-scale emission.',
+        actions: [
+            ['All baselines', () => update({ stage: 'AA*', durH: 4, fovDeg: 4, sky: 'diffuse', sizeT: sizeT_for(60 * AM, 4, state.N), cutUnit: 'lambda', cutMin: 0, cutMax: Infinity, p5: 'psf' })],
+            ['Drop < 80 λ', () => update({ stage: 'AA*', durH: 4, fovDeg: 4, sky: 'diffuse', sizeT: sizeT_for(60 * AM, 4, state.N), cutUnit: 'lambda', cutMin: 80, cutMax: Infinity, p5: 'psf' })],
+        ],
+    },
+    {
+        title: 'The resolution limit',
+        text: 'Two point sources 6′ apart. Keep only baselines below 300 λ (beam ≈ 11′) and they merge into one blob. Restore the long baselines and they split.',
+        actions: [
+            ['Max 300 λ', () => update({ stage: 'AA*', durH: 4, fovDeg: 2, sky: 'double', sizeT: sizeT_for(6 * AM, 2, state.N), rotDeg: 30, cutUnit: 'lambda', cutMin: 0, cutMax: 300, p5: 'psf' })],
+            ['No max', () => update({ stage: 'AA*', durH: 4, fovDeg: 2, sky: 'double', sizeT: sizeT_for(6 * AM, 2, state.N), rotDeg: 30, cutUnit: 'lambda', cutMin: 0, cutMax: Infinity, p5: 'psf' })],
+        ],
+    },
+    {
+        title: 'Growing the array',
+        text: 'Step through the SKA-Low assembly stages for the same 4-hour observation. More stations means more baselines and a cleaner PSF.',
+        actions: ['AA0.5', 'AA1', 'AA2', 'AA*', 'AA4'].map(s => [s, () => update({ stage: s, durH: 4, fovDeg: 4, cutMin: 0, cutMax: Infinity, sky: 'circles', p5: 'psf' })]),
+    },
+    {
+        title: 'Same metres, different wavelengths',
+        text: 'The cut is fixed at 2 km of projected baseline. At low frequency (high redshift) 2 km is fewer wavelengths, so the beam is coarser. Toggle the cut unit to λ to see the conversion.',
+        actions: [
+            ['75 MHz (z ≈ 18)', () => update({ stage: 'AA*', durH: 4, fovDeg: 4, sky: 'ring', sizeT: sizeT_for(40 * AM, 4, state.N), cutUnit: 'km', cutMin: 0, cutMax: 2, nu: 75, p5: 'psf' })],
+            ['300 MHz (z ≈ 3.7)', () => update({ stage: 'AA*', durH: 4, fovDeg: 4, sky: 'ring', sizeT: sizeT_for(40 * AM, 4, state.N), cutUnit: 'km', cutMin: 0, cutMax: 2, nu: 300, p5: 'psf' })],
+        ],
+    },
+    {
+        title: 'Natural vs uniform weighting',
+        text: 'Natural weighting lets the crowded core dominate: a broad beam with a wide skirt. Uniform weighting boosts the sparse long baselines: a sharper beam but busier sidelobes.',
+        actions: [
+            ['Natural', () => update({ stage: 'AA4', durH: 4, fovDeg: 1, cutMin: 0, cutMax: Infinity, weighting: 'natural', sky: 'points', sizeT: sizeT_for(20 * AM, 1, state.N), p5: 'psf' })],
+            ['Uniform', () => update({ stage: 'AA4', durH: 4, fovDeg: 1, cutMin: 0, cutMax: Infinity, weighting: 'uniform', sky: 'points', sizeT: sizeT_for(20 * AM, 1, state.N), p5: 'psf' })],
+        ],
+    },
+    {
+        title: 'Building an image, scale by scale',
+        text: 'Add the uv cells one ring at a time, from the shortest baselines to the longest. The coarse shape appears first and the fine detail last: an image really is a sum of fringes.',
+        actions: [['▶ Play', () => {
+            update({ stage: 'AA*', durH: 6, fovDeg: 4, cutMin: 0, cutMax: Infinity, sky: 'circles', p5: 'psf' });
+            requestAnimationFrame(() => requestAnimationFrame(runBuild));
+        }]],
+    },
+];
+(function renderExperiments() {
+    const host = $('experiments');
+    EXPERIMENTS.forEach((ex, i) => {
+        const card = document.createElement('div');
+        card.className = 'bg-white border border-slate-200 rounded-md p-3.5 flex flex-col gap-2';
+        card.innerHTML = `<div class="font-sans text-sm font-semibold text-slate-900">${String(i + 1).padStart(2, '0')}. ${ex.title}</div>
+            <p class="font-serif text-xs text-slate-600 leading-snug">${ex.text}</p>
+            <div class="flex flex-wrap gap-1.5 mt-auto"></div>`;
+        const row = card.lastElementChild;
+        ex.actions.forEach(([label, fn]) => {
+            const b = document.createElement('button');
+            b.className = 'try-btn';
+            b.textContent = label;
+            b.addEventListener('click', () => { fn(); window.scrollTo({ top: document.querySelector('.grid.gap-x-4').offsetTop - 12, behavior: 'smooth' }); });
+            row.appendChild(b);
+        });
+        host.appendChild(card);
+    });
+})();
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+syncUI();
+schedule();
+</script>
+</body>
+</html>
