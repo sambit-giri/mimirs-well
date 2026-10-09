@@ -227,7 +227,7 @@
             <div class="pwrap"><canvas id="cv-uv" class="viz-canvas clickable"></canvas></div>
             <p class="font-serif text-xs text-slate-500 leading-snug">
                 <span class="legend-dot" style="background:#2563eb"></span>used
-                <span class="legend-dot ml-2" style="background:#cbd5e1"></span>removed by cut
+                <span class="legend-dot ml-2" style="background:#cbd5e1"></span>removed (cut, or shorter than one grid cell)
                 <span class="legend-dot ml-2" style="background:#f59e0b"></span>beyond image grid.
                 <em>Click anywhere to see that baseline's fringe.</em>
             </p>
@@ -477,7 +477,7 @@ function computeCoverage() {
     const hIn = new Uint8Array(UV_RES * UV_RES), hCut = new Uint8Array(UV_RES * UV_RES), hOff = new Uint8Array(UV_RES * UV_RES);
     const used = new Uint8Array(B.nb);
     const hs = UV_RES / (2 * ext);
-    let nIn = 0, nCut = 0, nOff = 0, nSteps = 0, rMin = Infinity, rMax = 0;
+    let nIn = 0, nCut = 0, nOff = 0, nZero = 0, nSteps = 0, rMin = Infinity, rMax = 0, rAll = Infinity;
     const sinElMin = Math.sin(EL_MIN);
 
     for (let t = 0; t < nT; t++) {
@@ -493,6 +493,7 @@ function computeCoverage() {
             const u = sH * x + cH * y;
             const v = vx * x + vy * y + cd * z;
             const r = Math.sqrt(u * u + v * v);
+            if (r < rAll) rAll = r;
             // display histogram (both u,v and -u,-v)
             const px = Math.floor((u + ext) * hs), py = Math.floor((ext - v) * hs);
             const qx = UV_RES - 1 - px, qy = UV_RES - 1 - py;
@@ -503,6 +504,13 @@ function computeCoverage() {
                 continue;
             }
             const iu = Math.round(u / du), iv = Math.round(v / du);
+            // Nearest cell is (0,0): this baseline sees scales larger than the field, and gridding it
+            // there would fake a measurement of the image mean. An interferometer never measures V(0,0).
+            if (iu === 0 && iv === 0) {
+                nZero++;
+                if (onD) { hCut[py * UV_RES + px] = 1; hCut[qy * UV_RES + qx] = 1; }
+                continue;
+            }
             if (iu >= h || iu <= -h || iv >= h || iv <= -h) {
                 nOff++;
                 if (onD) { hOff[py * UV_RES + px] = 1; hOff[qy * UV_RES + qx] = 1; }
@@ -521,7 +529,7 @@ function computeCoverage() {
     const stUsed = new Uint8Array(B.n);
     for (let k = 0; k < B.nb; k++) if (used[k]) { stUsed[B.I[k]] = 1; stUsed[B.J[k]] = 1; }
 
-    return { B, counts, hIn, hCut, hOff, ext, uNyq, du, nIn, nCut, nOff, nT, nSteps, rMin, rMax, stUsed, cutLo, cutHi };
+    return { B, counts, hIn, hCut, hOff, ext, uNyq, du, nIn, nCut, nOff, nZero, nT, nSteps, rMin, rMax, rAll, stUsed, cutLo, cutHi };
 }
 
 // ─────────────────────────────────────────────
@@ -873,6 +881,12 @@ function drawUV() {
             if (c > dil[j]) dil[j] = c;
         }
     }
+    // dilation must not paint into the hole around the origin: no sample is shorter than rAll
+    const hsD = UV_RES / (2 * R.ext);
+    for (let y = 0; y < UV_RES; y++) for (let x = 0; x < UV_RES; x++) {
+        const uu = (x + 0.5) / hsD - R.ext, vv = R.ext - (y + 0.5) / hsD;
+        if (Math.hypot(uu, vv) < R.rAll && !cat[y * UV_RES + x]) dil[y * UV_RES + x] = 0;
+    }
     for (let i = 0; i < UV_RES * UV_RES; i++) {
         const c = colours[dil[i]];
         if (c) { rgba[4 * i] = c[0]; rgba[4 * i + 1] = c[1]; rgba[4 * i + 2] = c[2]; }
@@ -903,6 +917,7 @@ function drawUV() {
         ctx.strokeRect(cx - g, cy - g, 2 * g, 2 * g);
     }
     ctx.setLineDash([]);
+    markOrigin(ctx, cx, cy, Math.max(4, Math.min(R.rAll, isFinite(R.rMin) ? R.rMin : R.rAll) * sc));
     // fringe marker
     if (state.fringe) {
         for (const s of [1, -1]) {
@@ -925,6 +940,16 @@ function drawUV() {
     ctx.restore();
 }
 
+// Zero-spacing marker: a ring around the empty centre, labelled
+function markOrigin(ctx, cx, cy, rPx) {
+    ctx.save();
+    ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(cx, cy, rPx, 0, 2 * Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - 3, cy - 3); ctx.lineTo(cx + 3, cy + 3); ctx.moveTo(cx + 3, cy - 3); ctx.lineTo(cx - 3, cy + 3); ctx.stroke();
+    ctx.font = '600 9px Inter, sans-serif'; ctx.fillStyle = '#dc2626';
+    ctx.fillText('V(0,0) never measured', cx + rPx + 4, cy - rPx - 2);
+    ctx.restore();
+}
 function drawFT() {
     const N = R.N, cv = $('cv-ft');
     const amp = new Float64Array(N * N);
@@ -945,6 +970,7 @@ function drawFT() {
         rgba[4 * i + 3] = 255;
     }
     const { ctx, w, h } = blit(cv, rgba, N);
+    markOrigin(ctx, w / 2, h / 2, Math.max(4, w / N));
     // fringe marker
     if (state.fringe) {
         const sc = w / (2 * R.uNyq);
@@ -1021,6 +1047,11 @@ function updateInsights() {
         if (['double'].includes(state.sky)) sizeMsg = s > res ? `The two sources are ${fmtAng(s)} apart, wider than the beam, so they should be <strong>resolved</strong>.` : `The two sources are ${fmtAng(s)} apart, closer than the beam, so they <strong>blur into one</strong>.`;
         else if (['gaussian', 'ellipse', 'square', 'ring', 'diffuse'].includes(state.sky)) sizeMsg = s > las ? `Your structure (${fmtAng(s)}) is <strong>larger than the largest recoverable scale</strong>, so most of its flux is filtered out.` : s < res ? `Your structure (${fmtAng(s)}) is <strong>smaller than the beam</strong>, so it looks like a point source.` : `Your structure (${fmtAng(s)}) sits between the two, so the array sees it.`;
         out.push(`Resolution ≈ <strong>${fmtAng(res)}</strong> (1/u<sub>max</sub>); largest recoverable scale ≈ <strong>${fmtAng(las)}</strong> (1/u<sub>min</sub>). ${sizeMsg}`);
+    }
+    if (R.nIn > 0) {
+        let z = `<strong>No zero spacing:</strong> no baseline measures V(0, 0), so the dirty image always averages to zero and the total flux is lost.`;
+        if (R.nZero > 0) z += ` ${fmtInt(R.nZero * 2)} very short samples landed in the central grid cell (cell size ${fmtLam(R.du)}) and were dropped: on this grid they would only see the image mean.`;
+        out.push(z);
     }
     if (R.nOff > 0) {
         const pct = 100 * R.nOff / tot;
