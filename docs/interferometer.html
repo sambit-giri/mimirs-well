@@ -207,6 +207,15 @@
         </div>
     </div>
 
+    <!-- Build-up toolbar -->
+    <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 mb-4">
+        <div class="flex flex-wrap gap-2">
+            <button id="btn-build-radial" class="try-btn text-xs">▶ Build up: short → long baselines</button>
+            <button id="btn-build-time" class="try-btn text-xs">▶ Build up: observing time</button>
+        </div>
+        <span id="build-status" class="font-sans text-xs text-slate-500 tabular-nums"></span>
+    </div>
+
     <!-- Panels -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-5 mb-5">
 
@@ -264,7 +273,6 @@
         <figure class="flex flex-col gap-1.5">
             <figcaption class="flex justify-between items-center gap-2 min-h-[24px]">
                 <span class="font-sans text-[10px] font-bold uppercase tracking-widest text-slate-500">⑥ Dirty image</span>
-                <button id="btn-build" class="try-btn">▶ Build up, short → long</button>
             </figcaption>
             <div class="pwrap"><canvas id="cv-dirty" class="viz-canvas"></canvas></div>
             <div class="cbar" id="cb-dirty"></div>
@@ -462,74 +470,88 @@ function cutLambda() {
 // ─────────────────────────────────────────────
 // UV COVERAGE + GRIDDING
 // ─────────────────────────────────────────────
-function computeCoverage() {
+// Coverage is accumulated one time step at a time, so the observing-time build-up can reuse it.
+function coverageInit() {
     const B = getBaselines(state.stage);
-    const N = state.N, h = N / 2;
-    const lam = lambdaM(), invLam = 1 / lam;
+    const N = state.N;
+    const lam = lambdaM();
     const du = 1 / fovRad();           // grid cell, λ
-    const uNyq = h * du;               // grid half-extent, λ
+    const uNyq = (N / 2) * du;         // grid half-extent, λ
     const [cutLo, cutHi] = cutLambda();
-    const ext = state.uvExtent === 'grid' ? uNyq : B.bmax * invLam * 1.04;
-
-    const dec = state.decDeg * DEG, sd = Math.sin(dec), cd = Math.cos(dec);
+    const ext = state.uvExtent === 'grid' ? uNyq : B.bmax / lam * 1.04;
     const nT = state.durH === 0 ? 1 : Math.max(2, Math.min(121, Math.round(state.durH * 10) + 1));
-    const counts = new Float64Array(N * N);
-    const hIn = new Uint8Array(UV_RES * UV_RES), hCut = new Uint8Array(UV_RES * UV_RES), hOff = new Uint8Array(UV_RES * UV_RES);
-    const used = new Uint8Array(B.nb);
-    const hs = UV_RES / (2 * ext);
-    let nIn = 0, nCut = 0, nOff = 0, nZero = 0, nSteps = 0, rMin = Infinity, rMax = 0, rAll = Infinity;
-    const sinElMin = Math.sin(EL_MIN);
+    const hourAngles = Array.from({ length: nT }, (_, t) => nT === 1 ? 0 : -state.durH / 2 + state.durH * t / (nT - 1));
+    return {
+        B, N, invLam: 1 / lam, du, uNyq, cutLo, cutHi, ext, nT, hourAngles, dec: state.decDeg * DEG,
+        counts: new Float64Array(N * N),
+        hIn: new Uint8Array(UV_RES * UV_RES), hCut: new Uint8Array(UV_RES * UV_RES), hOff: new Uint8Array(UV_RES * UV_RES),
+        used: new Uint8Array(B.nb),
+        nIn: 0, nCut: 0, nOff: 0, nZero: 0, nSteps: 0, nDone: 0, rMin: Infinity, rMax: 0, rAll: Infinity,
+    };
+}
 
-    for (let t = 0; t < nT; t++) {
-        const Hh = nT === 1 ? 0 : -state.durH / 2 + state.durH * t / (nT - 1);
-        const H = Hh * 15 * DEG;
-        const sH = Math.sin(H), cH = Math.cos(H);
-        const sinEl = Math.sin(LAT) * sd + Math.cos(LAT) * cd * cH;
-        if (sinEl < sinElMin) continue;
-        nSteps++;
-        const vx = -sd * cH, vy = sd * sH;
-        for (let k = 0; k < B.nb; k++) {
-            const x = B.X[k] * invLam, y = B.Y[k] * invLam, z = B.Z[k] * invLam;
-            const u = sH * x + cH * y;
-            const v = vx * x + vy * y + cd * z;
-            const r = Math.sqrt(u * u + v * v);
-            if (r < rAll) rAll = r;
-            // display histogram (both u,v and -u,-v)
-            const px = Math.floor((u + ext) * hs), py = Math.floor((ext - v) * hs);
-            const qx = UV_RES - 1 - px, qy = UV_RES - 1 - py;
-            const onD = px >= 0 && px < UV_RES && py >= 0 && py < UV_RES;
-            if (r < cutLo || r > cutHi) {
-                nCut++;
-                if (onD) { hCut[py * UV_RES + px] = 1; hCut[qy * UV_RES + qx] = 1; }
-                continue;
-            }
-            const iu = Math.round(u / du), iv = Math.round(v / du);
-            // Nearest cell is (0,0): this baseline sees scales larger than the field, and gridding it
-            // there would fake a measurement of the image mean. An interferometer never measures V(0,0).
-            if (iu === 0 && iv === 0) {
-                nZero++;
-                if (onD) { hCut[py * UV_RES + px] = 1; hCut[qy * UV_RES + qx] = 1; }
-                continue;
-            }
-            if (iu >= h || iu <= -h || iv >= h || iv <= -h) {
-                nOff++;
-                if (onD) { hOff[py * UV_RES + px] = 1; hOff[qy * UV_RES + qx] = 1; }
-                continue;
-            }
-            counts[((iv + N) % N) * N + ((iu + N) % N)] += 1;
-            counts[((N - iv) % N) * N + ((N - iu) % N)] += 1;
-            if (onD) { hIn[py * UV_RES + px] = 1; hIn[qy * UV_RES + qx] = 1; }
-            used[k] = 1;
-            nIn++;
-            if (r < rMin) rMin = r;
-            if (r > rMax) rMax = r;
+function coverageAddStep(acc, t) {
+    const { B, N, invLam, du, cutLo, cutHi, ext, counts, hIn, hCut, hOff, used } = acc;
+    const h = N / 2, hs = UV_RES / (2 * ext);
+    const sd = Math.sin(acc.dec), cd = Math.cos(acc.dec);
+    const H = acc.hourAngles[t] * 15 * DEG;
+    const sH = Math.sin(H), cH = Math.cos(H);
+    acc.nDone = t + 1;
+    const sinEl = Math.sin(LAT) * sd + Math.cos(LAT) * cd * cH;
+    if (sinEl < Math.sin(EL_MIN)) return;
+    acc.nSteps++;
+    let { nIn, nCut, nOff, nZero, rMin, rMax, rAll } = acc;
+    const vx = -sd * cH, vy = sd * sH;
+    for (let k = 0; k < B.nb; k++) {
+        const x = B.X[k] * invLam, y = B.Y[k] * invLam, z = B.Z[k] * invLam;
+        const u = sH * x + cH * y;
+        const v = vx * x + vy * y + cd * z;
+        const r = Math.sqrt(u * u + v * v);
+        if (r < rAll) rAll = r;
+        // display histogram (both u,v and -u,-v)
+        const px = Math.floor((u + ext) * hs), py = Math.floor((ext - v) * hs);
+        const qx = UV_RES - 1 - px, qy = UV_RES - 1 - py;
+        const onD = px >= 0 && px < UV_RES && py >= 0 && py < UV_RES;
+        if (r < cutLo || r > cutHi) {
+            nCut++;
+            if (onD) { hCut[py * UV_RES + px] = 1; hCut[qy * UV_RES + qx] = 1; }
+            continue;
         }
+        const iu = Math.round(u / du), iv = Math.round(v / du);
+        // Nearest cell is (0,0): this baseline sees scales larger than the field, and gridding it
+        // there would fake a measurement of the image mean. An interferometer never measures V(0,0).
+        if (iu === 0 && iv === 0) {
+            nZero++;
+            if (onD) { hCut[py * UV_RES + px] = 1; hCut[qy * UV_RES + qx] = 1; }
+            continue;
+        }
+        if (iu >= h || iu <= -h || iv >= h || iv <= -h) {
+            nOff++;
+            if (onD) { hOff[py * UV_RES + px] = 1; hOff[qy * UV_RES + qx] = 1; }
+            continue;
+        }
+        counts[((iv + N) % N) * N + ((iu + N) % N)] += 1;
+        counts[((N - iv) % N) * N + ((N - iu) % N)] += 1;
+        if (onD) { hIn[py * UV_RES + px] = 1; hIn[qy * UV_RES + qx] = 1; }
+        used[k] = 1;
+        nIn++;
+        if (r < rMin) rMin = r;
+        if (r > rMax) rMax = r;
     }
+    Object.assign(acc, { nIn, nCut, nOff, nZero, rMin, rMax, rAll });
+}
 
+function coverageFinish(acc) {
+    const { B, used } = acc;
     const stUsed = new Uint8Array(B.n);
     for (let k = 0; k < B.nb; k++) if (used[k]) { stUsed[B.I[k]] = 1; stUsed[B.J[k]] = 1; }
+    return { ...acc, stUsed };
+}
 
-    return { B, counts, hIn, hCut, hOff, ext, uNyq, du, nIn, nCut, nOff, nZero, nT, nSteps, rMin, rMax, rAll, stUsed, cutLo, cutHi };
+function computeCoverage() {
+    const acc = coverageInit();
+    for (let t = 0; t < acc.nT; t++) coverageAddStep(acc, t);
+    return coverageFinish(acc);
 }
 
 // ─────────────────────────────────────────────
@@ -704,10 +726,14 @@ function dirtyFrom(Vre, Vim, W, N) {
 
 function computeAll() {
     const N = state.N;
-    const cov = computeCoverage();
     const sky = buildSky();
     const Vre = shift(sky, N), Vim = new Float64Array(N * N);
     fft2(Vre, Vim, N, false);
+    R = imagesFrom(computeCoverage(), sky, Vre, Vim);
+}
+// PSF and dirty image for a given coverage, reusing the sky and its transform
+function imagesFrom(cov, sky, Vre, Vim) {
+    const N = cov.N;
     const W = weightsFrom(cov.counts);
     let sw = 0;
     const pre = new Float64Array(N * N), pim = new Float64Array(N * N);
@@ -716,7 +742,7 @@ function computeAll() {
     if (sw > 0) for (let i = 0; i < pre.length; i++) pre[i] /= sw;
     const psf = shift(pre, N);
     const dirty = dirtyFrom(Vre, Vim, W, N);
-    R = { ...cov, sky, Vre, Vim, W, psf, dirty, N };
+    return { ...cov, sky, Vre, Vim, W, psf, dirty, N };
 }
 
 // ─────────────────────────────────────────────
@@ -1018,6 +1044,7 @@ function drawP5() {
 }
 
 const DIRTY_CAPTION = 'Sky units convolved with the PSF (per beam)';
+const DIRTY_NOTE = 'True sky convolved with the PSF: what the telescope hands back.';
 function drawSkyAndDirty(dirty = R.dirty) {
     drawImage($('cv-sky'), R.sky, R.N, { positive: true, cb: 'cb-sky', caption: 'Brightness I (arbitrary units per pixel)' });
     drawImage($('cv-dirty'), dirty, R.N, { cb: 'cb-dirty', caption: DIRTY_CAPTION });
@@ -1066,12 +1093,42 @@ function updateInsights() {
 // ─────────────────────────────────────────────
 const BUILD_MS = 10000;      // total build-up duration
 const BUILD_FRAME_MS = 80;   // redraw at most every 80 ms
+const LABEL_RADIAL = '▶ Build up: short → long baselines', LABEL_TIME = '▶ Build up: observing time';
+let animKind = null;
+
 function stopAnim() {
     if (animId) { cancelAnimationFrame(animId); animId = null; }
-    $('btn-build').textContent = '▶ Build up, short → long';
+    animKind = null;
+    $('btn-build-radial').textContent = LABEL_RADIAL;
+    $('btn-build-time').textContent = LABEL_TIME;
+    $('build-status').innerHTML = '';
 }
+// Stop a running animation and restore the full observation
+function stopAndRestore() {
+    const kind = animKind;
+    stopAnim();
+    if (kind === 'time') { computeAll(); drawAll(); }
+    else if (kind === 'radial') drawSkyAndDirty();
+    $('note-dirty').innerHTML = DIRTY_NOTE;
+}
+// Drive fn(p) with p from 0 to 1 over BUILD_MS, redrawing at most every BUILD_FRAME_MS
+function animate(kind, fn) {
+    animKind = kind;
+    let t0 = null, lastDraw = -Infinity;
+    const step = now => {
+        if (t0 === null) t0 = now;
+        const p = Math.min(1, (now - t0) / BUILD_MS);
+        if (now - lastDraw >= BUILD_FRAME_MS || p === 1) { lastDraw = now; fn(p); }
+        if (p < 1) animId = requestAnimationFrame(step);
+        else { animId = null; animKind = null; $('btn-build-radial').textContent = LABEL_RADIAL; $('btn-build-time').textContent = LABEL_TIME; }
+    };
+    animId = requestAnimationFrame(step);
+}
+
+// Short → long: add uv cells in order of radius, growing it logarithmically so each octave of scale gets equal time
 function runBuild() {
-    if (animId) { stopAnim(); drawSkyAndDirty(); return; }
+    if (animKind === 'radial') { stopAndRestore(); return; }
+    if (animKind) stopAndRestore();
     if (!R || R.nIn === 0) return;
     const N = R.N, cells = [];
     for (let i = 0; i < R.W.length; i++) if (R.W[i] > 0) {
@@ -1080,27 +1137,43 @@ function runBuild() {
         cells.push([iu * iu + iv * iv, i]);
     }
     cells.sort((p, q) => p[0] - q[0]);
-    // Grow the uv radius logarithmically over BUILD_MS, so each octave of scale gets equal time
     const Wp = new Float64Array(N * N);
     const r0 = Math.max(1, Math.sqrt(cells[0][0])), r1 = Math.max(r0 * 1.01, Math.sqrt(cells[cells.length - 1][0]));
-    let k = 0, t0 = null, lastDraw = -Infinity;
-    $('btn-build').textContent = '■ Stop';
-    const step = now => {
-        if (t0 === null) t0 = now;
-        const p = Math.min(1, (now - t0) / BUILD_MS);
-        if (now - lastDraw >= BUILD_FRAME_MS || p === 1) {
-            lastDraw = now;
-            const rLim = r0 * Math.pow(r1 / r0, p);
-            while (k < cells.length && Math.sqrt(cells[k][0]) <= rLim) { const i = cells[k][1]; Wp[i] = R.W[i]; k++; }
-            const d = dirtyFrom(R.Vre, R.Vim, Wp, N);
-            drawImage($('cv-dirty'), d, N, { cb: 'cb-dirty', caption: DIRTY_CAPTION });
-            const rNow = Math.sqrt(cells[Math.max(0, k - 1)][0]) * R.du;
-            $('note-dirty').innerHTML = `Using baselines up to <strong>${fmtLam(rNow)}</strong> (${fmtKm(rNow * lambdaM())}) → resolution ≈ ${fmtAng(1 / Math.max(rNow, R.du))}.`;
-        }
-        if (p < 1) animId = requestAnimationFrame(step);
-        else { animId = null; $('btn-build').textContent = '▶ Build up, short → long'; }
-    };
-    animId = requestAnimationFrame(step);
+    let k = 0;
+    $('btn-build-radial').textContent = '■ Stop';
+    animate('radial', p => {
+        const rLim = r0 * Math.pow(r1 / r0, p);
+        while (k < cells.length && Math.sqrt(cells[k][0]) <= rLim) { const i = cells[k][1]; Wp[i] = R.W[i]; k++; }
+        const d = dirtyFrom(R.Vre, R.Vim, Wp, N);
+        drawImage($('cv-dirty'), d, N, { cb: 'cb-dirty', caption: DIRTY_CAPTION });
+        const rNow = Math.sqrt(cells[Math.max(0, k - 1)][0]) * R.du;
+        const msg = `Using baselines up to <strong>${fmtLam(rNow)}</strong> (${fmtKm(rNow * lambdaM())}) → resolution ≈ ${fmtAng(1 / Math.max(rNow, R.du))}.`;
+        $('note-dirty').innerHTML = msg;
+        $('build-status').innerHTML = msg;
+    });
+}
+
+// Observing time: add hour-angle steps one by one; every panel follows the growing uv tracks
+function runBuildTime() {
+    if (animKind === 'time') { stopAndRestore(); return; }
+    if (animKind) stopAndRestore();
+    if (!R) return;
+    if (state.durH === 0) { $('build-status').innerHTML = 'Set an observation length above 0 h to watch the tracks grow.'; return; }
+    const { sky, Vre, Vim } = R;
+    const acc = coverageInit();
+    $('btn-build-time').textContent = '■ Stop';
+    animate('time', p => {
+        const target = Math.max(1, Math.round(p * acc.nT));
+        if (target === acc.nDone && p < 1) return;
+        while (acc.nDone < target) coverageAddStep(acc, acc.nDone);
+        R = imagesFrom(coverageFinish(acc), sky, Vre, Vim);
+        drawAll();
+        const hNow = acc.hourAngles[acc.nDone - 1], hStart = acc.hourAngles[0];
+        const fmtH = x => `${x < 0 ? '−' : '+'}${Math.abs(x).toFixed(1)} h`;
+        const elapsed = hNow - hStart;
+        $('build-status').innerHTML = `Hour angle ${fmtH(hStart)} → <strong>${fmtH(hNow)}</strong> &middot; ${elapsed.toFixed(1)} of ${state.durH} h observed`;
+        $('note-dirty').innerHTML = `After <strong>${elapsed.toFixed(1)} h</strong>: true sky convolved with the PSF of the tracks so far.`;
+    });
 }
 
 // ─────────────────────────────────────────────
@@ -1109,7 +1182,7 @@ function runBuild() {
 let pending = false;
 function schedule() {
     stopAnim();
-    $('note-dirty').innerHTML = 'True sky convolved with the PSF: what the telescope hands back.';
+    $('note-dirty').innerHTML = DIRTY_NOTE;
     if (pending) return;
     pending = true;
     requestAnimationFrame(() => {
@@ -1180,6 +1253,8 @@ function syncUI() {
     const pix = fovRad() / state.N, uNyq = state.N / 2 / fovRad();
     $('fov-note').innerHTML = `Pixel ${fmtAng(pix)} &middot; grid reaches |u| = ${fmtLam(uNyq)} (${fmtKm(uNyq * lam)} at this ν).`;
 
+    $('btn-build-time').style.opacity = state.durH === 0 ? 0.45 : 1;
+    $('btn-build-time').title = state.durH === 0 ? 'Needs an observation length above 0 h' : 'Replay the observation, hour angle by hour angle';
     setSeg('zoom-seg', state.zoom);
     setSeg('uvext-seg', state.uvExtent);
     setSeg('p5-seg', state.p5);
@@ -1243,7 +1318,8 @@ function pickFringe(cv, ext, e) {
 }
 $('cv-uv').addEventListener('click', e => R && pickFringe($('cv-uv'), R.ext, e));
 $('cv-ft').addEventListener('click', e => R && pickFringe($('cv-ft'), R.uNyq, e));
-$('btn-build').addEventListener('click', runBuild);
+$('btn-build-radial').addEventListener('click', runBuild);
+$('btn-build-time').addEventListener('click', runBuildTime);
 
 let resizeTimer;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawAll, 80); });
@@ -1267,10 +1343,14 @@ const EXPERIMENTS = [
     },
     {
         title: 'Earth-rotation synthesis',
-        text: 'With 16 stations a snapshot is a sparse scatter of dots. Let the Earth turn and each dot stretches into an arc. Watch the PSF sidelobes calm down as the uv plane fills.',
+        text: 'With 16 stations a snapshot is a sparse scatter of dots. Let the Earth turn and each dot stretches into an arc. Watch the PSF sidelobes calm down as the uv plane fills, or replay an 8-hour AA2 track hour by hour.',
         actions: [
             ['Snapshot', () => update({ stage: 'AA1', durH: 0, fovDeg: 4, cutMin: 0, cutMax: Infinity, sky: 'circles', p5: 'psf' })],
             ['8 hours', () => update({ stage: 'AA1', durH: 8, fovDeg: 4, cutMin: 0, cutMax: Infinity, sky: 'circles', p5: 'psf' })],
+            ['▶ Watch it fill', () => {
+                update({ stage: 'AA2', durH: 8, fovDeg: 4, cutMin: 0, cutMax: Infinity, sky: 'circles', p5: 'psf' });
+                requestAnimationFrame(() => requestAnimationFrame(runBuildTime));
+            }],
         ],
     },
     {
